@@ -19,6 +19,10 @@
 
   table.valid_action?(player_id: "Person", action: "bet", amount: 6) # => false
   table.valid_action?(player_id: "Robert", action: "replace", cards: ["9C"]) # => true
+
+  table.simulate! [
+    { player_id: "Robert", action: "replace", cards: ["9C"] }
+  ]
 </pre>
 
 
