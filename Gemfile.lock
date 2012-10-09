@@ -1,3 +1,9 @@
+GIT
+  remote: https://github.com/robolson/ruby-poker.git
+  revision: 7bdd90cfddfcaaaf5c3925b0592e7999c5cb859c
+  specs:
+    ruby-poker (0.3.2)
+
 GEM
   remote: http://rubygems.org/
   specs:
@@ -29,3 +35,4 @@ DEPENDENCIES
   guard-rspec
   mocha
   rspec
+  ruby-poker!

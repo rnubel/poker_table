@@ -1,5 +1,7 @@
+require 'ruby-poker'
+
 class PokerTable
-  attr_accessor :players, :deck, :actions, :ante, :round, :pot
+  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners
 
   def initialize(params={deck:""})
     @deck = params[:deck].split(" ")
@@ -125,7 +127,22 @@ private
   end
 
   def showdown!
+    @round = 'showdown'
 
+    winning_hand = active_players.map { |p| PokerHand.new(p[:hand]) }.max
+    
+    winners = active_players.select { |p|
+      PokerHand.new(p[:hand]) == winning_hand
+    }
+
+    pot_per_winner = @pot / winners.size
+    @winners = winners.collect do |winner|
+      allotment = winner == winners.last ? @pot : pot_per_winner
+      @pot -= allotment
+
+      { player_id: winner[:id],
+        winnings: allotment }
+    end      
   end
 
   def start_post_draw!

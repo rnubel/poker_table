@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe PokerTable do
   let(:deck){
-    "5H AS 9C TH QH QS 2C 3C 4H 1C JS JC KC"
+    "5H AS 9C TH QH QS 2C 3C 4H AC JS JC KC"
   }
 
   let(:players) {
@@ -43,7 +43,7 @@ describe PokerTable do
         table.players.first[:hand].should == ["5H","9C","QH","2C","4H"]
 
         table.players.last[:stack].should == 10
-        table.players.last[:hand].should == ["AS","TH","QS","3C","1C"]
+        table.players.last[:hand].should == ["AS","TH","QS","3C","AC"]
       end
 
       it "should set the round as being 'deal'" do
@@ -91,11 +91,11 @@ describe PokerTable do
       end
     end
 
-    context "when given a valid sequence of bets to end the first round and replace cards" do
+    context "when given valid actions to end the first round and replace cards" do
       before :each do
         table.simulate!([
-          { player_id: "playerone", action: "bet", amount: 1 },
-          { player_id: "playertwo", action: "bet", amount: 1 },
+          { player_id: "playerone", action: "bet", amount: 6 },
+          { player_id: "playertwo", action: "bet", amount: 6 },
           { player_id: "playerone", action: "replace", cards: ["5H"] },
           { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] }
         ])
@@ -103,11 +103,33 @@ describe PokerTable do
 
       it "should update the players' hands" do
         table.players.first[:hand].should == ["9C","QH","2C","4H", "JS"] 
-        table.players.last[:hand].should == ["AS","3C","1C", "JC", "KC"] 
+        table.players.last[:hand].should == ["AS","3C","AC", "JC", "KC"] 
       end
 
       it "should show the round as being 'post_draw'" do
         table.round.should == 'post_draw'
+      end
+    end
+
+    context "when given valid actions to end a full hand" do
+      before :each do
+        table.simulate!([
+          { player_id: "playerone", action: "bet", amount: 6 },
+          { player_id: "playertwo", action: "bet", amount: 6 },
+          { player_id: "playerone", action: "replace", cards: ["5H"] },
+          { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] },
+          { player_id: "playerone", action: "bet", amount: 1 },
+          { player_id: "playertwo", action: "bet", amount: 2 },
+          { player_id: "playerone", action: "bet", amount: 2 },
+        ])
+      end
+
+      it "should show the round as being 'showdown'" do
+        table.round.should == 'showdown'
+      end
+
+      it "should know the round's winners and their winnings" do
+        table.winners.should == [{ player_id: "playertwo", winnings: 16 }]
       end
     end
   end
