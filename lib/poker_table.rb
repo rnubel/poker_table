@@ -1,7 +1,10 @@
 require 'ruby-poker'
 
 class PokerTable
-  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners
+  DRAW_LIMIT = 3
+  DEAL_SIZE = 5
+
+  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners, :current_player
 
   def initialize(params={deck:""})
     @deck = params[:deck].split(" ")
@@ -12,12 +15,13 @@ class PokerTable
   end
 
   def simulate!(actions=[])
-    self.actions = actions
-   
-    # Start the hand, then simulate actions.
-    self.round = 'deal'
-    ante_up!
-    deal_cards!
+    if self.actions.empty?
+      # Start the hand, then simulate actions.
+      start_deal!
+    end
+
+    # Push any new actions and start simulating.
+    self.actions += actions
 
     actions.each do |action|
       react_to!(action)
@@ -32,6 +36,39 @@ class PokerTable
     active_players.map{ |p| p[:latest_bet] || 0 }.max
   end
 
+  def maximum_bet
+    minimum_bet + active_players.map{ |p| p[:stack] }.min
+  end
+
+  def valid_action?(action)
+    player = find_player(action[:player_id])
+
+    return false unless @current_player == player
+
+    case action[:action]
+    when "bet" # Absolute amount!
+      if betting_round?
+        amount = action[:amount].to_i
+        raised_amount = amount - (player[:latest_bet] || 0)
+
+        amount >= self.minimum_bet &&
+        amount <= self.maximum_bet &&
+        raised_amount <= player[:stack] 
+      else
+        false
+      end
+    when "replace" # List of cards!
+      if draw_round?
+        action[:cards].all? { |c|
+          player[:hand].include?(c)
+        } && action[:cards].size < DRAW_LIMIT
+      else
+        false
+      end
+    end
+  end
+
+
 private
   def ante_up!
     players.each do |player|
@@ -45,7 +82,7 @@ private
       player[:hand] = []
     end
 
-    5.times do
+    DEAL_SIZE.times do
       active_players.each do |player|
         player[:hand].push @deck.delete_at(0)
       end
@@ -53,11 +90,15 @@ private
   end
 
   def fold!(player)
+    puts "Player #{player[:id]} folds."
+
     player[:folded] = true
+    next_player!
   end
 
   def kick!(player)
     player[:kicked] = true
+    next_player!
   end
 
   def bet!(player, amount)
@@ -68,37 +109,54 @@ private
     player[:latest_bet] = amount
     player[:stack] -= raised_amount
     @pot += raised_amount
+
+    next_player!
   end
 
   def replace!(player, cards)
     puts "Player #{player[:id]} chooses to replace cards #{cards}"
     player[:hand] -= cards
-    (5 - player[:hand].size).times do
+    (DEAL_SIZE - player[:hand].size).times do
       player[:hand].push @deck.delete_at(0)
     end
 
     player[:replaced] = true
+    next_player!
   end
+
+  def next_player!
+    # Everyone else folded, so go to showdown.
+    if active_players.size == 1
+      showdown!
+    end
+
+    # Find the first player after @current player who's active.
+    players.size.times do
+      puts "current player: #{@current_player}"
+      next_index = (players.index(@current_player) + 1) % players.size
+      @current_player = players[next_index]
+      break if active_players.include? @current_player
+    end 
+  end
+
+  ## ACTION HANDLING
 
   def react_to!(action)
     player = find_player(action[:player_id])
 
-    if valid_action? action
+    if player != @current_player
+      # Ignore.
+    elsif valid_action? action
       case action[:action]
       when "bet" # Absolute amount!
-        if betting_round?
-          bet!(player, action[:amount].to_i)
-        else
-          fold!(player)
-        end
+        bet!(player, action[:amount].to_i)
       when "replace" # List of cards!
-        if draw_round?
-          replace!(player, action[:cards])
-        else
-          # Wat
-        end
+        replace!(player, action[:cards])
+      when "fold" # Kay
+        fold!(player)
       end
     else
+      fold!(player)
     end
 
     update_round!
@@ -122,19 +180,38 @@ private
     end
   end
 
+  ## ROUNDS
+
+  def start_deal!
+    self.round = 'deal'
+    @current_player = @players.first
+    ante_up!
+    deal_cards!
+  end
+
   def start_draw!
     @round = 'draw'
+    @current_player = @players.first
+  end
+
+  def start_post_draw!
+    @round = 'post_draw'
+    @current_player = @players.first
   end
 
   def showdown!
     @round = 'showdown'
 
-    winning_hand = active_players.map { |p| PokerHand.new(p[:hand]) }.max
+    if active_players.size > 1
+      winning_hand = active_players.map { |p| PokerHand.new(p[:hand]) }.max
     
-    winners = active_players.select { |p|
-      PokerHand.new(p[:hand]) == winning_hand
-    }
-
+      winners = active_players.select { |p|
+        PokerHand.new(p[:hand]) == winning_hand
+      }
+    else
+      winners = active_players
+    end
+    
     pot_per_winner = @pot / winners.size
     @winners = winners.collect do |winner|
       allotment = winner == winners.last ? @pot : pot_per_winner
@@ -145,9 +222,7 @@ private
     end      
   end
 
-  def start_post_draw!
-    @round = 'post_draw'
-  end
+  ## MISC
 
   def clear_bets!
     active_players.each do |p|
@@ -165,9 +240,5 @@ private
 
   def find_player(id)
     players.find {|p| p[:id] == id}
-  end
-
-  def valid_action?(action)
-    true
   end
 end

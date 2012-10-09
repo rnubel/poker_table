@@ -132,6 +132,58 @@ describe PokerTable do
         table.winners.should == [{ player_id: "playertwo", winnings: 16 }]
       end
     end
+
+    context "when given invalid actions" do
+      it "should reject invalid bets and treat them as folds" do
+        table.simulate!([
+            { player_id: "playerone", action: "bet", amount: 6 },
+            { player_id: "playertwo", action: "bet", amount: 1 },
+          ])
+
+        table.active_players.size.should == 1
+      end
+
+      it "should recognize an invalid bet after simulating" do
+        table.simulate!([
+            { player_id: "playerone", action: "bet", amount: 6 }
+          ])
+
+        table.valid_action?(
+            { player_id: "playertwo", action: "bet", amount: 1 }
+        ).should be_false
+      end
+
+      it "should recognize when its not a players turn" do
+        table.simulate!([
+            { player_id: "playerone", action: "bet", amount: 6 }
+          ])
+
+        table.valid_action?(
+            { player_id: "playerone", action: "bet", amount: 7 }
+        ).should be_false
+      end
+    end
+
+    describe "player rotation" do
+      it "should start off at the dealer's position" do
+        table.simulate!([])
+        table.current_player[:id].should == "playerone"
+      end
+
+      it "should rotate to the next player if that player folds" do
+        table.simulate!([
+            { player_id: "playerone", action: "fold" }
+          ])
+        table.current_player[:id].should == "playertwo"
+      end
+
+      it "should not care if both players say they fold" do
+        table.simulate!([
+            { player_id: "playerone", action: "fold" },
+            { player_id: "playertwo", action: "fold" }
+          ])
+      end
+    end
   end
 
   describe "#active_players" do
