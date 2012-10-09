@@ -1,5 +1,6 @@
 # Poker Table
 
+<pre>
   table = PokerTable.new ante: 5,
                          deck: "2C 3C 2S 4C 2H 5C 2D 8C 9C 10C 4S 5S 6S 8S",
                          players: [
@@ -18,6 +19,6 @@
 
   table.valid_action?(player_id: "Person", action: "bet", amount: 6) # => false
   table.valid_action?(player_id: "Robert", action: "replace", cards: ["9C"]) # => true
-
+</pre>
 
 
