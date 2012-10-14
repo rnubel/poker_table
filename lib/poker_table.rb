@@ -8,10 +8,12 @@ class PokerTable
 
   def initialize(params={deck:""})
     @deck = params[:deck].split(" ")
-    @players = params[:players]
+    @players = params[:players] || []
     @actions = []
     @ante = params[:ante]
     @pot = 0
+
+    @players.each { |p| p[:initial_stack] = p[:stack] }
   end
 
   def simulate!(actions=[])
@@ -30,6 +32,13 @@ class PokerTable
 
   def active_players
     players.reject { |p| p[:folded] || p[:kicked] }
+  end
+
+  def stack_changes
+    active_players.reduce({}) { |h, player|
+      h[player[:id]] = player[:stack] - player[:initial_stack]
+      h
+    }
   end
 
   def minimum_bet
@@ -219,10 +228,18 @@ private
 
       { player_id: winner[:id],
         winnings: allotment }
-    end      
+    end
+
+    hand_out_winnings!
   end
 
   ## MISC
+  def hand_out_winnings!
+    @winners.each do |winner|
+      player = @players.find { |p| p[:id] == winner[:player_id] }
+      player[:stack] += winner[:winnings]
+    end
+  end
 
   def clear_bets!
     active_players.each do |p|
