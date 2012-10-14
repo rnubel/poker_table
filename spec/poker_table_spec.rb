@@ -131,6 +131,10 @@ describe PokerTable do
       it "should know the round's winners and their winnings" do
         table.winners.should == [{ player_id: "playertwo", winnings: 16 }]
       end
+
+      it "lists total stack changes per player" do
+        table.stack_changes.should == { "playerone" => -8, "playertwo" => 8 }
+      end
     end
 
     context "when given invalid actions" do
