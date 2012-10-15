@@ -168,6 +168,25 @@ describe PokerTable do
       end
     end
 
+    context "when given folds" do
+      it "should allow the action 'fold" do
+        table.simulate!([
+            { player_id: "playerone", action: "bet", amount: 6 }
+          ])
+
+        table.valid_action?(player_id: "playertwo", action: "fold")
+          .should be_true
+      end
+
+      it "should end the round if N-1 players fold with the Nth the winner" do
+        table.simulate!([
+            { player_id: "playerone", action: "fold" }
+          ])
+
+        table.winners.first[:player_id].should == "playertwo"
+      end
+    end
+
     describe "player rotation" do
       it "should start off at the dealer's position" do
         table.simulate!([])

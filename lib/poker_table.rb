@@ -74,6 +74,8 @@ class PokerTable
       else
         false
       end
+    when "fold" # Should always be allowed, if it's their turn.
+      true
     end
   end
 
