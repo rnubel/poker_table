@@ -84,7 +84,7 @@ private
   def ante_up!
     players.each do |player|
       kick!(player) unless player[:stack] >= ante
-      bet!(player, ante)
+      ante!(player, ante)
     end
   end
 
@@ -112,14 +112,27 @@ private
     next_player!
   end
 
-  def bet!(player, amount)
-    puts "Player #{player[:id]} raises their bet to #{amount}."
+  def set_players_bet!(player, amount)
     player[:latest_bet] ||= 0
     raised_amount = amount - player[:latest_bet]
-
     player[:latest_bet] = amount
     player[:stack] -= raised_amount
     @pot += raised_amount
+  end
+
+  def ante!(player, amount)
+    puts "Player #{player[:id]} antes #{amount}."
+
+    set_players_bet!(player, amount)
+
+    next_player!
+  end
+
+  def bet!(player, amount)
+    puts "Player #{player[:id]} raises their bet to #{amount}."
+  
+    set_players_bet!(player, amount)
+    player[:has_bet] = true
 
     next_player!
   end
@@ -148,6 +161,7 @@ private
       @current_player = players[next_index]
       break if active_players.include? @current_player
     end 
+    puts "next player now #{@current_player}"
   end
 
   ## ACTION HANDLING
@@ -175,7 +189,10 @@ private
 
   def update_round!
     if betting_round?
-      if active_players.all? { |p| p[:latest_bet] == self.minimum_bet }
+      if active_players.size <= 1 ||
+         (  active_players.size > 1 &&
+            everyones_bet? &&
+            active_players.all? { |p| p[:latest_bet] == self.minimum_bet } )
         # Betting over, clear bets and move to the next round.
         clear_bets!
         if @round == 'deal'
@@ -189,6 +206,10 @@ private
         start_post_draw!
       end
     end
+  end
+
+  def everyones_bet?
+    self.active_players.all? { |p| p[:has_bet] }
   end
 
   ## ROUNDS
