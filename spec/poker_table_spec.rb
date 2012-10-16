@@ -55,8 +55,8 @@ describe PokerTable do
       context "when given a valid sequence of bets to end the first round" do
         before :each do
           table.simulate!([
-            { player_id: "playerone", action: "bet", amount: 6 },
-            { player_id: "playertwo", action: "bet", amount: 6 } 
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 1 } 
           ])
         end
 
@@ -72,10 +72,10 @@ describe PokerTable do
       context "when given a valid, more complex sequence of bets to end the first round" do
         before :each do
           table.simulate!([
-            { player_id: "playerone", action: "bet", amount: 6 },
-            { player_id: "playertwo", action: "bet", amount: 7 },
-            { player_id: "playerone", action: "bet", amount: 8 },
-            { player_id: "playertwo", action: "bet", amount: 8 }
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 2 },
+            { player_id: "playerone", action: "bet", amount: 3 },
+            { player_id: "playertwo", action: "bet", amount: 3 }
           ])
         end
 
@@ -95,8 +95,8 @@ describe PokerTable do
       context "when given valid actions to end the first round and replace cards" do
         before :each do
           table.simulate!([
-            { player_id: "playerone", action: "bet", amount: 6 },
-            { player_id: "playertwo", action: "bet", amount: 6 },
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 1 },
             { player_id: "playerone", action: "replace", cards: ["5H"] },
             { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] }
           ])
@@ -115,8 +115,8 @@ describe PokerTable do
       context "when given valid actions to end a full hand" do
         before :each do
           table.simulate!([
-            { player_id: "playerone", action: "bet", amount: 6 },
-            { player_id: "playertwo", action: "bet", amount: 6 },
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 1 },
             { player_id: "playerone", action: "replace", cards: ["5H"] },
             { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] },
             { player_id: "playerone", action: "bet", amount: 1 },
@@ -141,8 +141,8 @@ describe PokerTable do
       context "when given invalid actions" do
         it "should reject invalid bets and treat them as folds" do
           table.simulate!([
-              { player_id: "playerone", action: "bet", amount: 6 },
-              { player_id: "playertwo", action: "bet", amount: 1 },
+              { player_id: "playerone", action: "bet", amount: 1 },
+              { player_id: "playertwo", action: "bet", amount: 0 },
             ])
 
           table.active_players.size.should == 1
@@ -150,11 +150,11 @@ describe PokerTable do
 
         it "should recognize an invalid bet after simulating" do
           table.simulate!([
-              { player_id: "playerone", action: "bet", amount: 6 }
+              { player_id: "playerone", action: "bet", amount: 1 }
             ])
 
           table.valid_action?(
-              { player_id: "playertwo", action: "bet", amount: 1 }
+              { player_id: "playertwo", action: "bet", amount: 0 }
           ).should be_false
         end
 

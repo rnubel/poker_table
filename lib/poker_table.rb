@@ -87,6 +87,8 @@ private
       kick!(player) unless player[:stack] >= ante
       ante!(player, ante)
     end
+
+    clear_bets!
   end
 
   def deal_cards!
