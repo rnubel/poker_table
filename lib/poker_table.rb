@@ -67,6 +67,7 @@ class PokerTable
         false
       end
     when "replace" # List of cards!
+      return false unless action[:cards].is_a? Enumerable
       if draw_round?
         action[:cards].all? { |c|
           player[:hand].include?(c)

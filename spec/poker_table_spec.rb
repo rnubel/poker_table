@@ -167,6 +167,16 @@ describe PokerTable do
               { player_id: "playerone", action: "bet", amount: 7 }
           ).should be_false
         end
+
+        it "should require the cards parameter for replacing" do
+          table.simulate!([
+              { player_id: "playerone", action: "bet", amount: 6 },
+              { player_id: "playertwo", action: "bet", amount: 6 }
+            ])
+
+         table.valid_action?(player_id: "playerone", action: "replace")
+            .should be_false
+        end
       end
 
       context "when given folds" do
