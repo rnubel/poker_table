@@ -4,7 +4,7 @@ class PokerTable
   DRAW_LIMIT = 3
   DEAL_SIZE = 5
 
-  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners, :current_player
+  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners, :current_player, :log
 
   def initialize(params={deck:""})
     @deck = params[:deck].split(" ")
@@ -14,6 +14,7 @@ class PokerTable
     @pot = 0
 
     @players.each { |p| p[:initial_stack] = p[:stack] }
+    @log = []
   end
 
   def simulate!(actions=[])
@@ -28,6 +29,8 @@ class PokerTable
     actions.each do |action|
       react_to!(action)
     end
+
+    puts @log
   end
 
   def active_players
@@ -104,13 +107,16 @@ private
   end
 
   def fold!(player)
-    puts "Player #{player[:id]} folds."
+    #puts "Player #{player[:id]} folds."
+    log << { :player_id => player[:id], :action => "fold" }
 
     player[:folded] = true
     next_player!
   end
 
   def kick!(player)
+    log << { :player_id => player[:id], :action => "lost" }
+    
     player[:kicked] = true
     next_player!
   end
@@ -124,7 +130,8 @@ private
   end
 
   def ante!(player, amount)
-    puts "Player #{player[:id]} antes #{amount}."
+    log << { :player_id => player[:id], :action => "ante", :amount => amount }
+    # puts "Player #{player[:id]} antes #{amount}."
 
     set_players_bet!(player, amount)
 
@@ -132,7 +139,8 @@ private
   end
 
   def bet!(player, amount)
-    puts "Player #{player[:id]} raises their bet to #{amount}."
+    log << { :player_id => player[:id], :action => "bet", :amount => amount }
+    # puts "Player #{player[:id]} raises their bet to #{amount}."
   
     set_players_bet!(player, amount)
     player[:has_bet] = true
@@ -141,7 +149,8 @@ private
   end
 
   def replace!(player, cards)
-    puts "Player #{player[:id]} chooses to replace cards #{cards}"
+    log << { :player_id => player[:id], :action => "replace", :cards => cards }
+    # puts "Player #{player[:id]} chooses to replace cards #{cards}"
     player[:hand] -= cards
     (DEAL_SIZE - player[:hand].size).times do
       player[:hand].push @deck.delete_at(0)
@@ -159,12 +168,10 @@ private
 
     # Find the first player after @current player who's active.
     players.size.times do
-      puts "current player: #{@current_player}"
       next_index = (players.index(@current_player) + 1) % players.size
       @current_player = players[next_index]
       break if active_players.include? @current_player
     end 
-    puts "next player now #{@current_player}"
   end
 
   ## ACTION HANDLING
@@ -263,6 +270,9 @@ private
   def hand_out_winnings!
     @winners.each do |winner|
       player = @players.find { |p| p[:id] == winner[:player_id] }
+
+      @log << { :player_id => player[:id], :action => "won", :amount => winner[:winnings] }
+
       player[:stack] += winner[:winnings]
     end
   end

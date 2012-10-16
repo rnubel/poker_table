@@ -264,4 +264,30 @@ describe PokerTable do
       table.round.should == 'showdown'
     end
   end
+
+  describe "logging" do
+    let(:table) do
+      t = PokerTable.new deck: deck, ante: 15, players: [
+        { :id => 1, :stack => 20 },
+        { :id => 2, :stack => 20 },
+        { :id => 3, :stack => 20 }
+      ]
+      t.simulate! [
+        { :player_id => 1, :action => "fold" },
+        { :player_id => 2, :action => "fold" }
+      ]
+      t
+    end
+
+    it "should output a log of actual actions" do
+      table.log.should == [
+        { :player_id => 1, :action => "ante", :amount => 15 },
+        { :player_id => 2, :action => "ante", :amount => 15 },
+        { :player_id => 3, :action => "ante", :amount => 15 },
+        { :player_id => 1, :action => "fold" },
+        { :player_id => 2, :action => "fold" },
+        { :player_id => 3, :action => "won", :amount => 45 }
+      ]
+    end
+  end
 end
