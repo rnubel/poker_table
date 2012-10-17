@@ -262,6 +262,26 @@ describe PokerTable do
       ]
 
       table.round.should == 'showdown'
+      table.winners.should == [{ :player_id => 3, :winnings => 45 }]
+    end
+  end
+
+  describe "when players cannot meet the ante" do
+    let(:table) {
+      t = PokerTable.new deck: deck, ante: 15, players: [
+        { :id => 1, :stack => 20 },
+        { :id => 2, :stack => 5 } ]
+      t.simulate! []
+
+      t
+    }
+
+    it "lets the other player win immediately" do
+      table.winners.should == [{ :player_id => 1, :winnings => 20 }]
+    end
+
+    it "returns the kicked player as a loser" do
+      table.losers.should == [ { :player_id => 2 } ]
     end
   end
 
@@ -281,11 +301,13 @@ describe PokerTable do
 
     it "should output a log of actual actions" do
       table.log.should == [
+        { :round => "deal" },
         { :player_id => 1, :action => "ante", :amount => 15 },
         { :player_id => 2, :action => "ante", :amount => 15 },
         { :player_id => 3, :action => "ante", :amount => 15 },
         { :player_id => 1, :action => "fold" },
         { :player_id => 2, :action => "fold" },
+        { :round => "showdown" },
         { :player_id => 3, :action => "won", :amount => 45 }
       ]
     end

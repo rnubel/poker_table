@@ -4,16 +4,18 @@ class PokerTable
   DRAW_LIMIT = 3
   DEAL_SIZE = 5
 
-  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners, :current_player, :log
+  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners, :losers, :current_player, :log
 
   def initialize(params={deck:""})
     @deck = params[:deck].split(" ")
     @players = params[:players] || []
+    @players.each { |p| p[:initial_stack] = p[:stack] }
     @actions = []
     @ante = params[:ante]
     @pot = 0
 
-    @players.each { |p| p[:initial_stack] = p[:stack] }
+    @losers = []
+
     @log = []
   end
 
@@ -30,7 +32,9 @@ class PokerTable
       react_to!(action)
     end
 
+    puts "##### START LOG"
     puts @log
+    puts "##### END LOG"
   end
 
   def active_players
@@ -87,8 +91,11 @@ class PokerTable
 private
   def ante_up!
     players.each do |player|
-      kick!(player) unless player[:stack] >= ante
-      ante!(player, ante)
+      if player[:stack] < ante
+        kick!(player)
+      else
+        ante!(player, ante)
+      end
     end
 
     clear_bets!
@@ -115,8 +122,13 @@ private
   end
 
   def kick!(player)
-    log << { :player_id => player[:id], :action => "lost" }
-    
+    log << { :player_id => player[:id], :action => "lost", :stack_surrendered => player[:stack] }
+ 
+    @losers << { :player_id => player[:id] }
+
+    @pot += player[:stack]
+    player[:stack] = 0
+
     player[:kicked] = true
     next_player!
   end
@@ -223,25 +235,30 @@ private
   end
 
   ## ROUNDS
+  def set_round(round)
+    self.round = round
+    log << { :round => round }
+  end
 
   def start_deal!
-    self.round = 'deal'
+    set_round('deal')
     @current_player = @players.first
     ante_up!
     deal_cards!
   end
 
   def start_draw!
-    @round = 'draw'
+    set_round('draw')  
     @current_player = @players.first
   end
 
   def start_post_draw!
-    @round = 'post_draw'
+    set_round('post_draw')
     @current_player = @players.first
   end
 
   def showdown!
+    set_round('showdown')
     @round = 'showdown'
 
     if active_players.size > 1
