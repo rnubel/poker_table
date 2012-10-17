@@ -98,7 +98,9 @@ private
       end
     end
 
-    clear_bets!
+    if active_players.size <= 1
+      showdown!
+    end
   end
 
   def deal_cards!
@@ -130,7 +132,6 @@ private
     player[:stack] = 0
 
     player[:kicked] = true
-    next_player!
   end
 
   def set_players_bet!(player, amount)
@@ -146,8 +147,6 @@ private
     # puts "Player #{player[:id]} antes #{amount}."
 
     set_players_bet!(player, amount)
-
-    next_player!
   end
 
   def bet!(player, amount)
@@ -215,8 +214,7 @@ private
          (  active_players.size > 1 &&
             everyones_bet? &&
             active_players.all? { |p| p[:latest_bet] == self.minimum_bet } )
-        # Betting over, clear bets and move to the next round.
-        clear_bets!
+        # Betting over, move to the next round.
         if @round == 'deal'
           start_draw!
         elsif @round == 'post_draw'
@@ -291,12 +289,6 @@ private
       @log << { :player_id => player[:id], :action => "won", :amount => winner[:winnings] }
 
       player[:stack] += winner[:winnings]
-    end
-  end
-
-  def clear_bets!
-    active_players.each do |p|
-      p[:latest_bet] = nil
     end
   end
 
