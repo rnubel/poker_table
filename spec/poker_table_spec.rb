@@ -377,7 +377,7 @@ describe PokerTable do
           ]
         end
 
-        it "should award 120 to player 1" do
+        it "should award 170 to player 1" do
           table.winners.should == { :player_id => 1, :winnings => 170}
         end
       end
