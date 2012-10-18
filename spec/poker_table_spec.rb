@@ -239,6 +239,23 @@ describe PokerTable do
     end
   end
 
+  describe "when the dealer goes all-in on the ante" do
+    let(:table) {
+      PokerTable.new(
+        :deck => deck,
+        :ante => 20,
+        :players => [{:id => 1, :stack => 5}, {:id => 2, :stack => 25}])
+    }
+
+    before { table.simulate! [
+      {:player_id=>2, :action=>"bet", :amount=>25}
+    ] }
+
+    it "should be in the draw phase" do
+      table.round.should == 'draw'
+    end
+  end
+
   describe "with three players" do
     let(:table) {
       PokerTable.new deck: deck, ante: 15, players: [
@@ -353,7 +370,6 @@ describe PokerTable do
             { player_id: 2, action: "replace", cards: [] },
             { player_id: 3, action: "replace", cards: [] }
           ]
-          puts table.log
         end
 
         it "should award 170 to player 1" do

@@ -146,14 +146,12 @@ private
 
   def ante!(player, amount)
     log << { :player_id => player[:id], :action => "ante", :amount => amount }
-    # puts "Player #{player[:id]} antes #{amount}."
 
     set_players_bet!(player, amount)
   end
 
   def bet!(player, amount)
     log << { :player_id => player[:id], :action => "bet", :amount => amount }
-    # puts "Player #{player[:id]} raises their bet to #{amount}."
   
     set_players_bet!(player, amount)
     player[:bet_this_round] = true
@@ -163,7 +161,6 @@ private
 
   def replace!(player, cards)
     log << { :player_id => player[:id], :action => "replace", :cards => cards }
-    # puts "Player #{player[:id]} chooses to replace cards #{cards}"
     player[:hand] -= cards
     (DEAL_SIZE - player[:hand].size).times do
       player[:hand].push @deck.delete_at(0)
@@ -248,9 +245,10 @@ private
 
   def start_deal!
     set_round('deal')
-    @current_player = @players.first
     ante_up!
     deal_cards!
+    @current_player = active_players.last
+    next_player!
   end
 
   def start_draw!
@@ -287,7 +285,7 @@ private
         winners = pot_players
       end
 
-      puts [pot, last_pot, pot_players.size].inspect
+      #puts [pot, last_pot, pot_players.size].inspect
       pot_amount = (pot - last_pot) * pot_entrants.size
       @total_pot -= pot_amount
       pot_per_winner = pot_amount / winners.size
