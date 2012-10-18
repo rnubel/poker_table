@@ -148,13 +148,13 @@ describe PokerTable do
       end
 
       context "when given invalid actions" do
-        it "should reject invalid bets and treat them as folds" do
+        it "should ignore invalid bets and wait for a valid bet" do
           table.simulate!([
               { player_id: "playerone", action: "bet", amount: 6 },
               { player_id: "playertwo", action: "bet", amount: 5 },
             ])
 
-          table.active_players.size.should == 1
+          table.current_player[:id].should == "playertwo"
         end
 
         it "should recognize an invalid bet after simulating" do
