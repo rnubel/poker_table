@@ -154,7 +154,7 @@ private
     # puts "Player #{player[:id]} raises their bet to #{amount}."
   
     set_players_bet!(player, amount)
-    player[:has_bet] = true
+    player[:bet_this_round] = true
 
     next_player!
   end
@@ -229,12 +229,15 @@ private
   end
 
   def everyones_bet?
-    self.active_players.all? { |p| p[:has_bet] }
+    self.active_players.all? { |p| p[:bet_this_round] }
   end
 
   ## ROUNDS
   def set_round(round)
     self.round = round
+
+    active_players.each { |p| p[:bet_this_round] = false }
+
     log << { :round => round }
   end
 

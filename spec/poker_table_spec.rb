@@ -119,9 +119,10 @@ describe PokerTable do
             { player_id: "playertwo", action: "bet", amount: 6 },
             { player_id: "playerone", action: "replace", cards: ["5H"] },
             { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] },
-            { player_id: "playerone", action: "bet", amount: 7 },
-            { player_id: "playertwo", action: "bet", amount: 8 },
+            { player_id: "playerone", action: "bet", amount: 6 },
+            { player_id: "playertwo", action: "bet", amount: 7 },
             { player_id: "playerone", action: "bet", amount: 8 },
+            { player_id: "playertwo", action: "bet", amount: 8 },
           ])
         end
 
