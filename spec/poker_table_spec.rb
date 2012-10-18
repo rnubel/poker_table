@@ -357,6 +357,32 @@ describe PokerTable do
           table.winners.should include({:player_id=>3, :winnings=>20})
         end
       end
+
+      context "when the chip leader wins the main pot do" do
+        let(:table) {
+          PokerTable.new deck: deck, ante: 5, players: [
+            { :id => 1, :stack => 100 },
+            { :id => 2, :stack => 50 },
+            { :id => 3, :stack => 20 }
+          ]
+        }
+        before :each do
+          table.simulate! [
+            { player_id: 1, action: "bet", amount: 100 },
+            { player_id: 2, action: "bet", amount: 50 },
+            { player_id: 3, action: "bet", amount: 20 },
+            { player_id: 1, action: "replace", cards: [] },
+            { player_id: 2, action: "replace", cards: [] },
+            { player_id: 3, action: "replace", cards: [] }
+          ]
+          puts table.pots.inspect
+          puts table.log
+        end
+
+        it "should fail" do
+          1.should == 0
+        end
+      end
     end
   end
 
