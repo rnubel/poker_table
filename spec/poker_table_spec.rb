@@ -375,12 +375,10 @@ describe PokerTable do
             { player_id: 2, action: "replace", cards: [] },
             { player_id: 3, action: "replace", cards: [] }
           ]
-          puts table.pots.inspect
-          puts table.log
         end
 
-        it "should fail" do
-          1.should == 0
+        it "should award 120 to player 1" do
+          table.winners.should == { :player_id => 1, :winnings => 170}
         end
       end
     end
