@@ -63,10 +63,6 @@ describe PokerTable do
         it "should show the round as being 'draw'" do
           table.round.should == 'draw'
         end
-
-        it "should have a single pot of 12" do
-          table.pots.first[:amount].should == 12
-        end
       end
 
       context "when given a valid, more complex sequence of bets to end the first round" do
@@ -85,18 +81,6 @@ describe PokerTable do
 
         it "should show the round as being 'draw'" do
           table.round.should == 'draw'
-        end
-
-        it "should have no side pots" do
-          table.should have(1).pots
-        end
-
-        it "should have 16 chips in the pot" do
-          table.pots.first[:amount].should == 16
-        end
-
-        it "should make the pot eligible to 'playerone' and 'playertwo'" do
-          table.pots.first[:players].keys.should =~ ['playerone', 'playertwo']
         end
       end
 
@@ -127,10 +111,10 @@ describe PokerTable do
             { player_id: "playertwo", action: "bet", amount: 6 },
             { player_id: "playerone", action: "replace", cards: ["5H"] },
             { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] },
-            { player_id: "playerone", action: "bet", amount: 0 },
-            { player_id: "playertwo", action: "bet", amount: 1 },
-            { player_id: "playerone", action: "bet", amount: 2 },
-            { player_id: "playertwo", action: "bet", amount: 2 },
+            { player_id: "playerone", action: "bet", amount: 6 },
+            { player_id: "playertwo", action: "bet", amount: 7 },
+            { player_id: "playerone", action: "bet", amount: 8 },
+            { player_id: "playertwo", action: "bet", amount: 8 },
           ])
         end
 
@@ -251,7 +235,6 @@ describe PokerTable do
         t.simulate!
 
         t.active_players.size.should == 2
-        t.should have(2).pots
       end
     end
   end
@@ -298,13 +281,9 @@ describe PokerTable do
             { player_id: 1, action: "replace", cards: [] },
             { player_id: 2, action: "replace", cards: [] },
             { player_id: 3, action: "replace", cards: [] },
-            { player_id: 2, action: "bet", amount: 0 },
-            { player_id: 3, action: "bet", amount: 0 }
+            { player_id: 2, action: "bet", amount: 30 },
+            { player_id: 3, action: "bet", amount: 30 }
           ]
-        end
-
-        it "should have 2 pots" do
-          table.should have(2).pots
         end
 
         it "should award 60 chips to player 1" do
@@ -339,9 +318,8 @@ describe PokerTable do
             { player_id: 2, action: "replace", cards: [] },
             { player_id: 3, action: "replace", cards: [] },
             { player_id: 4, action: "replace", cards: [] },
-            { player_id: 2, action: "bet", amount: 0 },
-            { player_id: 3, action: "bet", amount: 0 },
-            { player_id: 4, action: "bet", amount: 0 }
+            { player_id: 3, action: "bet", amount: 40 },
+            { player_id: 4, action: "bet", amount: 40 }
           ]
         }
 
@@ -375,10 +353,11 @@ describe PokerTable do
             { player_id: 2, action: "replace", cards: [] },
             { player_id: 3, action: "replace", cards: [] }
           ]
+          puts table.log
         end
 
         it "should award 170 to player 1" do
-          table.winners.should == { :player_id => 1, :winnings => 170}
+          table.winners.should include({ :player_id => 1, :winnings => 170})
         end
       end
     end

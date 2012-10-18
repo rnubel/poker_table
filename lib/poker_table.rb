@@ -12,7 +12,6 @@ class PokerTable
     @players.each { |p| p[:initial_stack] = p[:stack] }
     @actions = []
     @ante = params[:ante]
-    @pots = [ { :amount => 0, :players => {} } ]
 
     @losers = []
 
@@ -53,7 +52,7 @@ class PokerTable
   end
 
   def minimum_bet
-    active_players.map{ |p| p[:latest_bet] || 0 }.max
+    active_players.map{ |p| p[:current_bet] || 0 }.max
   end
 
   def valid_action?(action)
@@ -65,9 +64,9 @@ class PokerTable
     when "bet" # Absolute amount!
       if betting_round?
         amount = action[:amount].to_i
-        raised_amount = amount - (player[:latest_bet] || 0)
+        raised_amount = amount - (player[:current_bet] || 0)
 
-        (amount >= self.minimum_bet || player[:all_in]) &&
+        (amount >= self.minimum_bet || (player[:all_in] || raised_amount == player[:stack]) ) &&
         raised_amount <= player[:stack] 
       else
         false
@@ -127,32 +126,21 @@ private
  
     @losers << { :player_id => player[:id] }
 
-    @pots.last[:amount] += player[:stack]
+    #@pots.last[:amount] += player[:stack]
     player[:stack] = 0
 
     player[:kicked] = true
   end
 
   def set_players_bet!(player, amount)
-    player[:latest_bet] ||= 0
-    raised_amount = amount - player[:latest_bet]
-    player[:latest_bet] = amount
+    player[:current_bet] ||= 0
+    raised_amount = amount - player[:current_bet]
+
+    player[:current_bet] = amount
     player[:stack] -= raised_amount
-    @pots.each do |pot|
-      pot[:players][player[:id]] ||= 0
-      max = pot[:players].values.max || 0
-      diff = max - pot[:players][player[:id]]
-      if diff > 0
-        pot[:amount] += diff
-        pot[:players][player[:id]] += diff
-        raised_amount -= diff
-      end
-    end
-    @pots.last[:amount] += raised_amount
-    @pots.last[:players][player[:id]] += raised_amount
-    if player[:stack] == 0 && !player[:all_in]
+
+    if player[:stack] == 0 
       player[:all_in] = true
-      @pots << { :amount => 0, :players => {} }
     end
   end
 
@@ -215,8 +203,6 @@ private
       when "fold" # Kay
         fold!(player)
       end
-    else
-      fold!(player)
     end
 
     update_round!
@@ -227,7 +213,7 @@ private
       if active_players.size <= 1 ||
          (  active_players.size > 1 &&
             everyones_bet? &&
-            active_players.all? { |p| p[:latest_bet] == self.minimum_bet || p[:all_in] } )
+            active_players.all? { |p| p[:current_bet] == self.minimum_bet || p[:all_in] } )
         # Betting over, move to the next round.
         if @round == 'deal'
           start_draw!
@@ -251,9 +237,11 @@ private
     self.round = round
 
     active_players.each { |p| p[:bet_this_round] = false }
-    active_players.each { |p| p[:latest_bet] = 0 }
-
     log << { :round => round }
+
+    if betting_round? && active_players.all? { |p| p[:all_in] }
+      update_round!
+    end
   end
 
   def start_deal!
@@ -279,8 +267,15 @@ private
     set_round('showdown')
     @round = 'showdown'
     @winners = {}
-    @pots.reverse.each do |pot|
-      pot_players = pot[:players].keys.map { |p| find_player(p) } & active_players
+
+    bets = self.players.collect { |p| p[:current_bet] }
+    @pots = [0] + bets.uniq.sort
+    @total_pot = bets.reduce(0) { |s, b| s + b }
+
+    @pots.each_cons(2) do |last_pot, pot|
+      pot_players = active_players.select { |p| p[:current_bet] >= pot }
+      pot_entrants = players.select { |p| p[:current_bet] >= pot }
+
       if pot_players.size > 1
         winning_hand = pot_players.map { |p| PokerHand.new(p[:hand]) }.max
         winners = pot_players.select { |p|
@@ -289,10 +284,14 @@ private
       else
         winners = pot_players
       end
-      pot_per_winner = pot[:amount] / winners.size
+
+      puts [pot, last_pot, pot_players.size].inspect
+      pot_amount = (pot - last_pot) * pot_entrants.size
+      @total_pot -= pot_amount
+      pot_per_winner = pot_amount / winners.size
       winners.each do |winner|
-        allotment = winner == winners.last ? pot[:amount] : pot_per_winner
-        pot[:amount] -= allotment
+        allotment = winner == winners.last ? pot_amount : pot_per_winner
+        pot_amount -= allotment
         @winners[winner[:id]] ||= 0
         @winners[winner[:id]] += allotment
       end
