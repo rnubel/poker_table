@@ -32,9 +32,13 @@ class PokerTable
       react_to!(action)
     end
 
-    puts "##### START LOG"
-    puts @log
-    puts "##### END LOG"
+    if ENV['DUMP_POKER_LOG']
+      puts "##### START LOG"
+      puts @log
+      puts "##### END LOG"
+    end
+
+    self
   end
 
   def active_players
@@ -42,7 +46,7 @@ class PokerTable
   end
 
   def stack_changes
-    active_players.reduce({}) { |h, player|
+    players.reduce({}) { |h, player|
       h[player[:id]] = player[:stack] - player[:initial_stack]
       h
     }

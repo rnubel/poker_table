@@ -298,6 +298,13 @@ describe PokerTable do
     it "lets the other player win immediately" do
       table.winners.should == [{ :player_id => 2, :winnings => 20 }]
     end
+
+    it "knows the correct stack changes" do
+      table.stack_changes.should == {
+        2 => 5,
+        1 => -5
+      }
+    end
   end
 
   describe "logging" do
