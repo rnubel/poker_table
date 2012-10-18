@@ -4,7 +4,7 @@ class PokerTable
   DRAW_LIMIT = 3
   DEAL_SIZE = 5
 
-  attr_accessor :players, :deck, :actions, :ante, :round, :pot, :winners, :losers, :current_player, :log
+  attr_accessor :players, :deck, :actions, :ante, :round, :pots, :winners, :losers, :current_player, :log
 
   def initialize(params={deck:""})
     @deck = params[:deck].split(" ")
@@ -12,7 +12,7 @@ class PokerTable
     @players.each { |p| p[:initial_stack] = p[:stack] }
     @actions = []
     @ante = params[:ante]
-    @pot = 0
+    @pots = [ { :amount => 0, :players => {} } ]
 
     @losers = []
 
@@ -56,10 +56,6 @@ class PokerTable
     active_players.map{ |p| p[:latest_bet] || 0 }.max
   end
 
-  def maximum_bet
-    minimum_bet + active_players.map{ |p| p[:stack] }.min
-  end
-
   def valid_action?(action)
     player = find_player(action[:player_id])
 
@@ -71,8 +67,7 @@ class PokerTable
         amount = action[:amount].to_i
         raised_amount = amount - (player[:latest_bet] || 0)
 
-        amount >= self.minimum_bet &&
-        amount <= self.maximum_bet &&
+        (amount >= self.minimum_bet || player[:all_in]) &&
         raised_amount <= player[:stack] 
       else
         false
@@ -96,7 +91,7 @@ private
   def ante_up!
     players.each do |player|
       if player[:stack] < ante
-        kick!(player)
+        ante!(player, player[:stack])
       else
         ante!(player, ante)
       end
@@ -132,7 +127,7 @@ private
  
     @losers << { :player_id => player[:id] }
 
-    @pot += player[:stack]
+    @pots.last[:amount] += player[:stack]
     player[:stack] = 0
 
     player[:kicked] = true
@@ -143,7 +138,22 @@ private
     raised_amount = amount - player[:latest_bet]
     player[:latest_bet] = amount
     player[:stack] -= raised_amount
-    @pot += raised_amount
+    @pots.each do |pot|
+      pot[:players][player[:id]] ||= 0
+      max = pot[:players].values.max || 0
+      diff = max - pot[:players][player[:id]]
+      if diff > 0
+        pot[:amount] += diff
+        pot[:players][player[:id]] += diff
+        raised_amount -= diff
+      end
+    end
+    @pots.last[:amount] += raised_amount
+    @pots.last[:players][player[:id]] += raised_amount
+    if player[:stack] == 0 && !player[:all_in]
+      player[:all_in] = true
+      @pots << { :amount => 0, :players => {} }
+    end
   end
 
   def ante!(player, amount)
@@ -185,7 +195,7 @@ private
     players.size.times do
       next_index = (players.index(@current_player) + 1) % players.size
       @current_player = players[next_index]
-      break if active_players.include? @current_player
+      break if active_players.include?(@current_player) && !(@current_player[:all_in] && betting_round?)
     end 
   end
 
@@ -217,7 +227,7 @@ private
       if active_players.size <= 1 ||
          (  active_players.size > 1 &&
             everyones_bet? &&
-            active_players.all? { |p| p[:latest_bet] == self.minimum_bet } )
+            active_players.all? { |p| p[:latest_bet] == self.minimum_bet || p[:all_in] } )
         # Betting over, move to the next round.
         if @round == 'deal'
           start_draw!
@@ -233,7 +243,7 @@ private
   end
 
   def everyones_bet?
-    self.active_players.all? { |p| p[:bet_this_round] }
+    self.active_players.all? { |p| p[:bet_this_round] || p[:all_in] }
   end
 
   ## ROUNDS
@@ -241,6 +251,7 @@ private
     self.round = round
 
     active_players.each { |p| p[:bet_this_round] = false }
+    active_players.each { |p| p[:latest_bet] = 0 }
 
     log << { :round => round }
   end
@@ -254,36 +265,40 @@ private
 
   def start_draw!
     set_round('draw')  
-    @current_player = @players.first
+    @current_player = active_players.last
+    next_player!
   end
 
   def start_post_draw!
     set_round('post_draw')
-    @current_player = @players.first
+    @current_player = active_players.last
+    next_player!
   end
 
   def showdown!
     set_round('showdown')
     @round = 'showdown'
-
-    if active_players.size > 1
-      winning_hand = active_players.map { |p| PokerHand.new(p[:hand]) }.max
-    
-      winners = active_players.select { |p|
-        PokerHand.new(p[:hand]) == winning_hand
-      }
-    else
-      winners = active_players
+    @winners = {}
+    @pots.reverse.each do |pot|
+      pot_players = pot[:players].keys.map { |p| find_player(p) } & active_players
+      if pot_players.size > 1
+        winning_hand = pot_players.map { |p| PokerHand.new(p[:hand]) }.max
+        winners = pot_players.select { |p|
+          PokerHand.new(p[:hand]) == winning_hand
+        }
+      else
+        winners = pot_players
+      end
+      pot_per_winner = pot[:amount] / winners.size
+      winners.each do |winner|
+        allotment = winner == winners.last ? pot[:amount] : pot_per_winner
+        pot[:amount] -= allotment
+        @winners[winner[:id]] ||= 0
+        @winners[winner[:id]] += allotment
+      end
     end
-    
-    pot_per_winner = @pot / winners.size
-    @winners = winners.collect do |winner|
-      allotment = winner == winners.last ? @pot : pot_per_winner
-      @pot -= allotment
 
-      { player_id: winner[:id],
-        winnings: allotment }
-    end
+    @winners = @winners.collect { |id,amt| { :player_id => id, :winnings => amt } }
 
     hand_out_winnings!
   end

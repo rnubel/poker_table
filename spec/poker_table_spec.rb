@@ -64,8 +64,8 @@ describe PokerTable do
           table.round.should == 'draw'
         end
 
-        it "should have a pot of 12" do
-          table.pot.should == 12
+        it "should have a single pot of 12" do
+          table.pots.first[:amount].should == 12
         end
       end
 
@@ -87,8 +87,16 @@ describe PokerTable do
           table.round.should == 'draw'
         end
 
-        it "should have a pot of 16" do
-          table.pot.should == 16
+        it "should have no side pots" do
+          table.should have(1).pots
+        end
+
+        it "should have 16 chips in the pot" do
+          table.pots.first[:amount].should == 16
+        end
+
+        it "should make the pot eligible to 'playerone' and 'playertwo'" do
+          table.pots.first[:players].keys.should =~ ['playerone', 'playertwo']
         end
       end
 
@@ -119,10 +127,10 @@ describe PokerTable do
             { player_id: "playertwo", action: "bet", amount: 6 },
             { player_id: "playerone", action: "replace", cards: ["5H"] },
             { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] },
-            { player_id: "playerone", action: "bet", amount: 6 },
-            { player_id: "playertwo", action: "bet", amount: 7 },
-            { player_id: "playerone", action: "bet", amount: 8 },
-            { player_id: "playertwo", action: "bet", amount: 8 },
+            { player_id: "playerone", action: "bet", amount: 0 },
+            { player_id: "playertwo", action: "bet", amount: 1 },
+            { player_id: "playerone", action: "bet", amount: 2 },
+            { player_id: "playertwo", action: "bet", amount: 2 },
           ])
         end
 
@@ -236,13 +244,14 @@ describe PokerTable do
     end
 
     describe "#ante_up!" do
-      it "should remove players who cannot meet the ante" do
+      it "should force a player all in if ze cannot meet the ante" do
         t = PokerTable.new deck: deck,
-                       ante: 15,
+                       ante: 12,
                        players: players
         t.simulate!
 
-        t.active_players.size.should == 1
+        t.active_players.size.should == 2
+        t.should have(2).pots
       end
     end
   end
@@ -267,43 +276,87 @@ describe PokerTable do
     end
   end
 
-  describe "when players cannot meet the ante" do
+  describe "with three players of different stack sizes" do
+    let(:deck) {
+      "AH KC 2H AC KH 3C AS KD 5S AD QS 7D KS QH TC"
+    }
     let(:table) {
-      t = PokerTable.new deck: deck, ante: 15, players: [
+      PokerTable.new deck: deck, ante: 5, players: [
         { :id => 1, :stack => 20 },
-        { :id => 2, :stack => 5 } ]
-      t.simulate! []
-
-      t
+        { :id => 2, :stack => 40 },
+        { :id => 3, :stack => 60 }
+      ]
     }
 
-    it "lets the other player win immediately" do
-      table.winners.should == [{ :player_id => 1, :winnings => 20 }]
-    end
+    context "handling side pots" do
+      context "when there are three players and one goes all in" do
+        before :each do
+          table.simulate! [
+            { player_id: 1, action: "bet", amount: 20 },
+            { player_id: 2, action: "bet", amount: 30 },
+            { player_id: 3, action: "bet", amount: 30 },
+            { player_id: 1, action: "replace", cards: [] },
+            { player_id: 2, action: "replace", cards: [] },
+            { player_id: 3, action: "replace", cards: [] },
+            { player_id: 2, action: "bet", amount: 0 },
+            { player_id: 3, action: "bet", amount: 0 }
+          ]
+        end
 
-    it "returns the kicked player as a loser" do
-      table.losers.should == [ { :player_id => 2 } ]
-    end
-  end
+        it "should have 2 pots" do
+          table.should have(2).pots
+        end
 
-  describe "when the dealer cannot meet the ante" do
-    let(:table) {
-      t = PokerTable.new deck: deck, ante: 15, players: [
-        { :id => 1, :stack => 5 },
-        { :id => 2, :stack => 20 } ]
-      t.simulate! []
-      t
-    }
+        it "should award 60 chips to player 1" do
+          table.winners.should include({ :player_id=>1, :winnings=>60})
+        end
 
-    it "lets the other player win immediately" do
-      table.winners.should == [{ :player_id => 2, :winnings => 20 }]
-    end
+        it "should have 20 chips in the side pot" do
+          table.winners.should include({:player_id=>2, :winnings=>20})
+        end
 
-    it "knows the correct stack changes" do
-      table.stack_changes.should == {
-        2 => 5,
-        1 => -5
-      }
+      end
+
+      context "when there are two side pots" do
+        let(:deck) {
+          "AC KC QC JC AS KS QS JS AH KH QH JH AD KD QD JD 2C 2D 2S 2H"
+        }
+        let(:table) {
+          PokerTable.new deck: deck, ante: 5, players: [
+            { :id => 1, :stack => 20 },
+            { :id => 2, :stack => 30 },
+            { :id => 3, :stack => 40 },
+            { :id => 4, :stack => 60 }
+        ]
+        }
+        before {
+          table.simulate! [
+            { player_id: 1, action: "bet", amount: 20 },
+            { player_id: 2, action: "bet", amount: 30 },
+            { player_id: 3, action: "bet", amount: 40 },
+            { player_id: 4, action: "bet", amount: 40 },
+            { player_id: 1, action: "replace", cards: [] },
+            { player_id: 2, action: "replace", cards: [] },
+            { player_id: 3, action: "replace", cards: [] },
+            { player_id: 4, action: "replace", cards: [] },
+            { player_id: 2, action: "bet", amount: 0 },
+            { player_id: 3, action: "bet", amount: 0 },
+            { player_id: 4, action: "bet", amount: 0 }
+          ]
+        }
+
+        it "should award 80 chips to player 1" do
+          table.winners.should include({ :player_id=>1, :winnings=>80})
+        end
+
+        it "should award 30 chips to player 2" do
+          table.winners.should include({:player_id=>2, :winnings=>30})
+        end
+
+        it "should award 20 chips to player 3" do
+          table.winners.should include({:player_id=>3, :winnings=>20})
+        end
+      end
     end
   end
 
