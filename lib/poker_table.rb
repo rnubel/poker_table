@@ -203,6 +203,8 @@ private
       when "fold" # Kay
         fold!(player)
       end
+    else
+      @log << { :invalid_action => action }
     end
 
     update_round!
