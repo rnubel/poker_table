@@ -228,13 +228,22 @@ describe PokerTable do
     end
 
     describe "#ante_up!" do
-      it "should force a player all in if ze cannot meet the ante" do
+      it "should force a player all in if they cannot meet the ante" do
         t = PokerTable.new deck: deck,
                        ante: 12,
                        players: players
         t.simulate!
 
         t.active_players.size.should == 2
+      end
+
+      it "should kick a player out if they have zero chips" do
+        t = PokerTable.new deck: deck,
+                       ante: 12,
+                       players: [ {:id => 1, :stack => 0}, {:id => 2, :stack => 10 } ]
+        t.simulate!
+
+        t.active_players.size.should == 1
       end
     end
   end

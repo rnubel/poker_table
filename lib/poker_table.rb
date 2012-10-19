@@ -44,6 +44,10 @@ class PokerTable
     players.reject { |p| p[:folded] || p[:kicked] }
   end
 
+  def entered_players
+    players.reject { |p| p[:kicked] }
+  end
+
   def stack_changes
     players.reduce({}) { |h, player|
       h[player[:id]] = player[:stack] - player[:initial_stack]
@@ -89,7 +93,9 @@ class PokerTable
 private
   def ante_up!
     players.each do |player|
-      if player[:stack] < ante
+      if player[:stack] == 0
+        kick!(player)
+      elsif player[:stack] < ante
         ante!(player, player[:stack])
       else
         ante!(player, ante)
@@ -114,7 +120,6 @@ private
   end
 
   def fold!(player)
-    #puts "Player #{player[:id]} folds."
     log << { :player_id => player[:id], :action => "fold" }
 
     player[:folded] = true
@@ -125,9 +130,6 @@ private
     log << { :player_id => player[:id], :action => "lost", :stack_surrendered => player[:stack] }
  
     @losers << { :player_id => player[:id] }
-
-    #@pots.last[:amount] += player[:stack]
-    player[:stack] = 0
 
     player[:kicked] = true
   end
@@ -171,9 +173,11 @@ private
   end
 
   def next_player!
+    return if over?
+
     # Everyone else folded, so go to showdown.
     if active_players.size == 1
-      showdown!
+      showdown!     
     end
 
     # Find the first player after @current player who's active.
@@ -268,13 +272,13 @@ private
     @round = 'showdown'
     @winners = {}
 
-    bets = self.players.collect { |p| p[:current_bet] }
+    bets = self.entered_players.collect { |p| p[:current_bet] }
     @pots = [0] + bets.uniq.sort
     @total_pot = bets.reduce(0) { |s, b| s + b }
 
     @pots.each_cons(2) do |last_pot, pot|
       pot_players = active_players.select { |p| p[:current_bet] >= pot }
-      pot_entrants = players.select { |p| p[:current_bet] >= pot }
+      pot_entrants = entered_players.select { |p| p[:current_bet] >= pot }
 
       if pot_players.size > 1
         winning_hand = pot_players.map { |p| PokerHand.new(p[:hand]) }.max
@@ -285,7 +289,6 @@ private
         winners = pot_players
       end
 
-      #puts [pot, last_pot, pot_players.size].inspect
       pot_amount = (pot - last_pot) * pot_entrants.size
       @total_pot -= pot_amount
       pot_per_winner = pot_amount / winners.size
@@ -300,6 +303,8 @@ private
     @winners = @winners.collect { |id,amt| { :player_id => id, :winnings => amt } }
 
     hand_out_winnings!
+
+    boot_losers!
   end
 
   ## MISC
@@ -313,12 +318,25 @@ private
     end
   end
 
+  def boot_losers!
+    self.entered_players.each do |player|
+      raise "Negative stack detected for #{player}!" if player[:stack] < 0
+      if player[:stack] == 0
+        kick!(player)
+      end
+    end
+  end
+
   def betting_round?
     ['deal', 'post_draw'].include? self.round
   end
 
   def draw_round?
     'draw' == self.round
+  end
+
+  def over?
+    'showdown' == self.round
   end
 
   def find_player(id)
