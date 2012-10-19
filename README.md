@@ -9,11 +9,10 @@
                          ]
 
   table.simulate! [
-    { player_id: "Robert", action: "bet", amount: 6 }
+    { player_id: "Robert", action: "bet", amount: 6 },
     { player_id: "Person", action: "bet", amount: 6 }
   ]
 
-  table.pot # => 12
   table.round == 'draw'
   table.current_player[:id] == "Robert"
 
