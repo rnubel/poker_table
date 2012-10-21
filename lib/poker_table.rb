@@ -285,8 +285,10 @@ private
         winners = pot_players.select { |p|
           PokerHand.new(p[:hand]) == winning_hand
         }
-      else
+      elsif pot_players.size == 1
         winners = pot_players
+      elsif pot_players.size == 0 # The player has folded, but needs a refund.
+        winners = pot_entrants
       end
 
       pot_amount = (pot - last_pot) * pot_entrants.size
