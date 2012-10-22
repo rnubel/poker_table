@@ -143,7 +143,7 @@ private
 
     if player[:stack] == 0 || active_players.reject { |p| p == player }.all? { |p| p[:all_in] }
       player[:all_in] = true
-      if active_players.reject { |p| p[:all_in] && p[:bet_this_round] }.count == 1
+      if active_players.reject { |p| p[:all_in] }.count == 1 && everyones_bet? && active_players.all? { |p| p[:current_bet] >= player[:current_bet] }
         active_players.each { |p| p[:all_in] = true }
       end
     end
