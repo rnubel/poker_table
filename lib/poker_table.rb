@@ -141,7 +141,7 @@ private
     player[:current_bet] = amount
     player[:stack] -= raised_amount
 
-    if player[:stack] == 0 
+    if player[:stack] == 0 || active_players.reject { |p| p == player }.all? { |p| p[:all_in] }
       player[:all_in] = true
     end
   end

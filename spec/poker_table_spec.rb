@@ -388,7 +388,7 @@ describe PokerTable do
     end
   end
 
-  describe "two player table when one player goes all in and the other folds" do
+  describe "two player table when one player goes all in and the other calls/raises" do
     let(:t) {
       PokerTable.new( players: [{:id=>75, :stack=>492}, {:id=>74, :stack=>258}],
         ante: 20,
@@ -400,8 +400,7 @@ describe PokerTable do
         {:player_id=>74, :action=>"bet", :amount=>258, :cards=>nil},
         {:player_id=>75, :action=>"bet", :amount=>265, :cards=>nil},
         {:player_id=>75, :action=>"replace", :amount=>nil, :cards=>["6C"]},
-        {:player_id=>74, :action=>"replace", :amount=>nil, :cards=>[]},
-        {:player_id=>75, :action=>"fold", :amount=>nil, :cards=>nil}
+        {:player_id=>74, :action=>"replace", :amount=>nil, :cards=>[]}
       ]
     }
 
