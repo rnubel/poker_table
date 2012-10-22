@@ -80,7 +80,7 @@ class PokerTable
       if draw_round?
         action[:cards].all? { |c|
           player[:hand].include?(c)
-        } && action[:cards].size < DRAW_LIMIT
+        } && action[:cards].size <= DRAW_LIMIT
       else
         false
       end

@@ -104,6 +104,26 @@ describe PokerTable do
         end
       end
 
+      context "when a player tries to replace three cards" do
+        before :each do
+          table.simulate!([
+            { player_id: "playerone", action: "bet", amount: 6 },
+            { player_id: "playertwo", action: "bet", amount: 6 },
+            { player_id: "playerone", action: "replace", cards: ["5H"] },
+            { player_id: "playertwo", action: "replace", cards: ["QS", "TH", "AS"] }
+          ])
+        end
+
+        it "should update the players' hands" do
+          table.players.first[:hand].should == ["9C","QH","2C","4H", "JS"] 
+          table.players.last[:hand].should == ["3C","AC", "JC", "KC", "3H"] 
+        end
+
+        it "should show the round as being 'post_draw'" do
+          table.round.should == 'post_draw'
+        end
+      end
+
       context "when given valid actions to end a full hand" do
         before :each do
           table.simulate!([
