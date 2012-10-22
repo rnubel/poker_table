@@ -408,7 +408,7 @@ describe PokerTable do
     end
   end
 
-  describe "two player table when one player goes all in and the other calls/raises" do
+  describe "two player table when player two goes all in and the other calls/raises" do
     let(:t) {
       PokerTable.new( players: [{:id=>75, :stack=>492}, {:id=>74, :stack=>258}],
         ante: 20,
@@ -426,6 +426,27 @@ describe PokerTable do
 
     it "gives player 74 his pot and refunds 75" do
       t.winners.should == [ {:player_id => 74, :winnings => 516}, {:player_id => 75, :winnings => 7 } ]
+    end
+  end
+
+  describe "two player table when player one goes all in and the other calls/raises" do
+    let(:t) {
+      PokerTable.new( players: [{:id=>75, :stack=>258}, {:id=>74, :stack=>500}],
+        ante: 20,
+        deck: "2C AC 4H AS 4C KC 8S 7D 6C 5D 3H 4D KH AD TC AH 7H 6S KD 5H 8D 9C 8C JD QS 2H 6H QH 4S 2D 3C TS 3D KS 9D 8H JS 7S 5S 7C TD QD 5C 6D JH QC 9S 2S TH JC")
+    }
+    before {
+      t.simulate! [
+        {:player_id=>75, :action=>"bet", :amount=>20, :cards=>nil},
+        {:player_id=>74, :action=>"bet", :amount=>258, :cards=>nil},
+        {:player_id=>75, :action=>"bet", :amount=>258, :cards=>nil},
+        {:player_id=>75, :action=>"replace", :amount=>nil, :cards=>["6C"]},
+        {:player_id=>74, :action=>"replace", :amount=>nil, :cards=>[]}
+      ]
+    }
+
+    it "gives player 74 the whole pot" do
+      t.winners.should == [ {:player_id => 74, :winnings => 516} ]
     end
   end
 
