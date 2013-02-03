@@ -39,7 +39,7 @@ describe PokerTable do
           table.simulate!([])
         end
 
-        it "should deal cards and take the ante of each player" do
+        it "deals cards and takes the ante of each player" do
           table.players.first[:stack].should == 5
           table.players.first[:hand].should == ["5H","9C","QH","2C","4H"]
 
@@ -47,7 +47,7 @@ describe PokerTable do
           table.players.last[:hand].should == ["AS","TH","QS","3C","AC"]
         end
 
-        it "should set the round as being 'deal'" do
+        it "sets the round as 'deal'" do
           table.round.should == 'deal'
         end
       end
@@ -60,7 +60,7 @@ describe PokerTable do
           ])
         end
 
-        it "should show the round as being 'draw'" do
+        it "shows the round as 'draw'" do
           table.round.should == 'draw'
         end
       end
@@ -75,11 +75,11 @@ describe PokerTable do
           ])
         end
 
-        it "should still have two active players" do
+        it "still has two active players" do
           table.active_players.size.should == 2
         end
 
-        it "should show the round as being 'draw'" do
+        it "shows the round as 'draw'" do
           table.round.should == 'draw'
         end
       end
@@ -94,12 +94,12 @@ describe PokerTable do
           ])
         end
 
-        it "should update the players' hands" do
+        it "updates the players' hands" do
           table.players.first[:hand].should == ["9C","QH","2C","4H", "JS"] 
           table.players.last[:hand].should == ["AS","3C","AC", "JC", "KC"] 
         end
 
-        it "should show the round as being 'post_draw'" do
+        it "shows the round as 'post_draw'" do
           table.round.should == 'post_draw'
         end
       end
@@ -114,12 +114,12 @@ describe PokerTable do
           ])
         end
 
-        it "should update the players' hands" do
+        it "updates the players' hands" do
           table.players.first[:hand].should == ["9C","QH","2C","4H", "JS"] 
           table.players.last[:hand].should == ["3C","AC", "JC", "KC", "3H"] 
         end
 
-        it "should show the round as being 'post_draw'" do
+        it "shows the round as being 'post_draw'" do
           table.round.should == 'post_draw'
         end
       end
@@ -138,11 +138,11 @@ describe PokerTable do
           ])
         end
 
-        it "should show the round as being 'showdown'" do
+        it "shows the round as being 'showdown'" do
           table.round.should == 'showdown'
         end
 
-        it "should know the round's winners and their winnings" do
+        it "knows the round's winners and their winnings" do
           table.winners.should == [{ player_id: "playertwo", winnings: 16 }]
         end
 
@@ -152,7 +152,7 @@ describe PokerTable do
       end
 
       context "when given invalid actions" do
-        it "should ignore invalid bets and wait for a valid bet" do
+        it "ignores invalid bets and wait for a valid bet" do
           table.simulate!([
               { player_id: "playerone", action: "bet", amount: 6 },
               { player_id: "playertwo", action: "bet", amount: 5 },
@@ -161,7 +161,7 @@ describe PokerTable do
           table.current_player[:id].should == "playertwo"
         end
 
-        it "should recognize an invalid bet after simulating" do
+        it "recognizes an invalid bet after simulating" do
           table.simulate!([
               { player_id: "playerone", action: "bet", amount: 6 }
             ])
@@ -171,7 +171,7 @@ describe PokerTable do
           ).should be_false
         end
 
-        it "should recognize when its not a players turn" do
+        it "recognizes when its not a players turn" do
           table.simulate!([
               { player_id: "playerone", action: "bet", amount: 6 }
             ])
@@ -181,7 +181,7 @@ describe PokerTable do
           ).should be_false
         end
 
-        it "should require the cards parameter for replacing" do
+        it "requires the cards parameter for replacing" do
           table.simulate!([
               { player_id: "playerone", action: "bet", amount: 6 },
               { player_id: "playertwo", action: "bet", amount: 6 }
@@ -192,8 +192,8 @@ describe PokerTable do
         end
       end
 
-      context "when given folds" do
-        it "should allow the action 'fold" do
+      describe "folding" do
+        it "allows the action 'fold" do
           table.simulate!([
               { player_id: "playerone", action: "bet", amount: 6 }
             ])
@@ -202,7 +202,7 @@ describe PokerTable do
             .should be_true
         end
 
-        it "should end the round if N-1 players fold with the Nth the winner" do
+        it "ends the round if N-1 players fold with the Nth the winner" do
           table.simulate!([
               { player_id: "playerone", action: "fold" }
             ])
@@ -212,19 +212,19 @@ describe PokerTable do
       end
 
       describe "player rotation" do
-        it "should start off at the dealer's position" do
+        it "starts off at the dealer's position" do
           table.simulate!([])
           table.current_player[:id].should == "playerone"
         end
 
-        it "should rotate to the next player if that player folds" do
+        it "rotates to the next player if that player folds" do
           table.simulate!([
               { player_id: "playerone", action: "fold" }
             ])
           table.current_player[:id].should == "playertwo"
         end
 
-        it "should not care if both players say they fold" do
+        it "does not blow up if both players say they fold" do
           table.simulate!([
               { player_id: "playerone", action: "fold" },
               { player_id: "playertwo", action: "fold" }
@@ -234,13 +234,13 @@ describe PokerTable do
     end
 
     describe "#active_players" do
-      it "should exclude folded players" do
+      it "excludes folded players" do
         t = PokerTable.new
         t.expects(:players).returns([{:folded => true}, {}])
         t.active_players.should == [{}]
       end
 
-      it "should exclude kicked players" do
+      it "excludes kicked players" do
         t = PokerTable.new
         t.expects(:players).returns([{:kicked => true}, {}])
         t.active_players.should == [{}]
@@ -248,7 +248,7 @@ describe PokerTable do
     end
 
     describe "#ante_up!" do
-      it "should force a player all in if they cannot meet the ante" do
+      it "forces a player all in if they cannot meet the ante" do
         t = PokerTable.new deck: deck,
                        ante: 12,
                        players: players
@@ -257,7 +257,7 @@ describe PokerTable do
         t.active_players.size.should == 2
       end
 
-      it "should kick a player out if they have zero chips" do
+      it "kicks a player out if they have zero chips" do
         t = PokerTable.new deck: deck,
                        ante: 12,
                        players: [ {:id => 1, :stack => 0}, {:id => 2, :stack => 10 } ]
@@ -332,11 +332,11 @@ describe PokerTable do
           ]
         end
 
-        it "should award 60 chips to player 1" do
+        it "awards 60 chips to player 1" do
           table.winners.should include({ :player_id=>1, :winnings=>60})
         end
 
-        it "should have 20 chips in the side pot" do
+        it "has 20 chips in the side pot" do
           table.winners.should include({:player_id=>2, :winnings=>20})
         end
 
@@ -401,7 +401,7 @@ describe PokerTable do
           ]
         end
 
-        it "should award 170 to player 1" do
+        it "awards 170 to player 1" do
           table.winners.should include({ :player_id => 1, :winnings => 170})
         end
       end
@@ -463,7 +463,7 @@ describe PokerTable do
       t
     end
 
-    it "should output a log of actual actions" do
+    it "outputs a log of actual actions" do
       table.log.should == [
         { :round => "deal" },
         { :player_id => 1, :action => "ante", :amount => 15 },
