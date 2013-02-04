@@ -65,17 +65,23 @@ class PokerTable
     return false unless @current_player == player
 
     case action[:action]
-    when "bet" # Absolute amount!
+    when "bet" # :amount => Relative amount to previous actual bet
       if betting_round?
-        amount = action[:amount].to_i
-        raised_amount = amount - (player[:current_bet] || 0)
+        raise_amount = action[:amount].to_i
+        call_amount = minimum_bet - (player[:current_bet] || 0)
 
-        (amount >= self.minimum_bet || (player[:all_in] || raised_amount == player[:stack]) ) &&
-        raised_amount <= player[:stack] 
+        if raise_amount < 0
+          false
+        elsif player[:stack] < call_amount # Player cannot call; only actions are all-in or fold. bet 0 === all-in
+          raise_amount == 0
+        else
+          # Does player have enough chips?
+          player[:stack] >= call_amount + raise_amount
+        end
       else
         false
       end
-    when "replace" # List of cards!
+    when "replace" # :cards => List of cards to replace
       return false unless action[:cards].is_a? Enumerable
       if draw_round?
         action[:cards].all? { |c|
@@ -134,31 +140,44 @@ private
     player[:kicked] = true
   end
 
-  def set_players_bet!(player, amount)
+  def go_all_in!(player)
+    player[:all_in] = true
+    player[:current_bet] += player[:stack]
+    player[:stack] = 0
+    if all_but_one_all_in? && everyones_bet? && active_players.all? { |p| (p[:current_bet] || 0) >= player[:current_bet] }
+      active_players.each { |p| p[:all_in] = true }
+    end
+  end
+
+  def take_players_bet!(player, amount)
     player[:current_bet] ||= 0
-    raised_amount = amount - player[:current_bet]
+    call_amount   = minimum_bet - player[:current_bet]
+    raise_amount  = amount
 
-    player[:current_bet] = amount
-    player[:stack] -= raised_amount
-
-    if player[:stack] == 0 || active_players.reject { |p| p == player }.all? { |p| p[:all_in] }
-      player[:all_in] = true
-      if active_players.reject { |p| p[:all_in] }.count == 1 && everyones_bet? && active_players.all? { |p| p[:current_bet] >= player[:current_bet] }
-        active_players.each { |p| p[:all_in] = true }
-      end
+    if call_amount + raise_amount >= player[:stack] # All-in
+      go_all_in!(player)
+    else
+      player[:current_bet] += call_amount + raise_amount
+      player[:stack] -= call_amount + raise_amount
     end
   end
 
   def ante!(player, amount)
     log << { :player_id => player[:id], :action => "ante", :amount => amount }
 
-    set_players_bet!(player, amount)
+    player[:current_bet] ||= 0
+    if player[:stack] == amount
+      go_all_in!(player)
+    else
+      player[:current_bet] = amount
+      player[:stack] -= amount
+    end
   end
 
   def bet!(player, amount)
     log << { :player_id => player[:id], :action => "bet", :amount => amount }
   
-    set_players_bet!(player, amount)
+    take_players_bet!(player, amount)
     player[:bet_this_round] = true
 
     next_player!
@@ -235,7 +254,12 @@ private
   end
 
   def everyones_bet?
-    self.active_players.all? { |p| p[:bet_this_round] || p[:all_in] }
+    self.active_players.all? { |p| p[:bet_this_round] || p[:all_in] } ||
+      all_but_one_all_in?
+  end
+
+  def all_but_one_all_in?
+    self.active_players.reject { |p| p[:all_in] }.size <= 1
   end
 
   ## ROUNDS
@@ -267,7 +291,12 @@ private
   def start_post_draw!
     set_round('post_draw')
     @current_player = active_players.last
-    next_player!
+
+    if all_but_one_all_in?
+      update_round!
+    else
+      next_player!
+    end
   end
 
   def showdown!
