@@ -59,16 +59,30 @@ class PokerTable
     active_players.map{ |p| p[:current_bet] || 0 }.max
   end
 
+  def map_action!(action_hash)
+    if action_hash[:action] == "call"
+      action_hash.merge!( action: "bet", amount: 0 )
+    elsif action_hash[:action] == "check"
+      action_hash.merge!( action: "bet", amount: 0, check: true )
+    elsif action_hash[:action] == "raise"
+      action_hash.merge!( action: "bet" )
+    end
+  end
+
   def valid_action?(action)
     player = find_player(action[:player_id])
 
     return false unless @current_player == player
+
+    map_action!(action) # Handle call, check, etc.
 
     case action[:action]
     when "bet" # :amount => Relative amount to previous actual bet
       if betting_round?
         raise_amount = action[:amount].to_i
         call_amount = minimum_bet - (player[:current_bet] || 0)
+
+        return false if action[:check] && raise_amount + call_amount > 0
 
         if raise_amount < 0
           false
@@ -214,6 +228,7 @@ private
 
   def react_to!(action)
     player = find_player(action[:player_id])
+    map_action! action # Handle call, check, etc.
 
     if player != @current_player
       # Ignore.

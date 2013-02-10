@@ -476,4 +476,105 @@ describe PokerTable do
       ]
     end
   end
+
+  describe "other types of bets" do
+    let(:deck) { "AH KC 2H AC KH 3C AS KD 5S AD QS 7D KS QH TC" }
+    let(:table) {
+      PokerTable.new deck: deck, ante: 5, players: [
+        { :id => 1, :stack => 100 },
+        { :id => 2, :stack => 50 },
+        { :id => 3, :stack => 20 }
+      ]
+    }
+
+    describe "call" do
+      it "is a valid action" do
+        table.simulate! [ { player_id: 1, action: "bet", amount: 95 } ]
+
+        table.valid_action?({ player_id: 2, action: "call" }).should be_true
+      end
+
+      context "in a full game" do
+        before :each do
+          table.simulate! [
+            { player_id: 1, action: "bet", amount: 95 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 },
+            { player_id: 1, action: "replace", cards: [] },
+            { player_id: 2, action: "replace", cards: [] },
+            { player_id: 3, action: "replace", cards: [] }
+          ]
+        end
+
+        it "works the same as bet 0" do
+          table.winners.should include({ :player_id => 1, :winnings => 170})
+        end
+      end
+    end
+
+    describe "raise" do
+      it "is a valid action" do
+        table.simulate! [ { player_id: 1, action: "bet", amount: 5 } ]
+        
+        table.valid_action?(player_id: 2, action: "raise", amount: 5).should be_true
+      end
+
+      it "works the same as bet" do
+        table.simulate! [
+           { player_id: 1, action: "bet", amount: 5 },
+           { player_id: 2, action: "call", amount: 0 },
+           { player_id: 3, action: "call", amount: 0 },
+           { player_id: 1, action: "replace", cards: [] },
+           { player_id: 2, action: "replace", cards: [] },
+           { player_id: 3, action: "replace", cards: [] },
+           { player_id: 1, action: "raise", :amount => 5},
+           { player_id: 2, action: "call"},
+           { player_id: 3, action: "call"}]
+
+        table.winners.should include(player_id: 1, winnings: 45)
+      end
+    end
+
+    describe "check" do
+      it "is a valid action when the call amount is zero" do
+        table.simulate! [
+           { player_id: 1, action: "bet", amount: 5 },
+           { player_id: 2, action: "call", amount: 0 },
+           { player_id: 3, action: "call", amount: 0 },
+           { player_id: 1, action: "replace", cards: [] },
+           { player_id: 2, action: "replace", cards: [] },
+           { player_id: 3, action: "replace", cards: [] }]
+
+        table.valid_action?( player_id: 1, action: "check" ).should be_true
+      end
+
+      it "is not a valid action when the call amount is not zero" do
+        table.simulate! [
+           { player_id: 1, action: "bet", amount: 5 },
+           { player_id: 2, action: "call", amount: 0 },
+           { player_id: 3, action: "call", amount: 0 },
+           { player_id: 1, action: "replace", cards: [] },
+           { player_id: 2, action: "replace", cards: [] },
+           { player_id: 3, action: "replace", cards: [] },
+           { player_id: 1, action: "bet", amount: 5 }]
+
+        table.valid_action?( player_id: 2, action: "check" ).should be_false
+      end
+
+      it "works the same as bet 0 in the right condition" do
+        table.simulate! [
+           { player_id: 1, action: "bet", amount: 5 },
+           { player_id: 2, action: "call", amount: 0 },
+           { player_id: 3, action: "call", amount: 0 },
+           { player_id: 1, action: "replace", cards: [] },
+           { player_id: 2, action: "replace", cards: [] },
+           { player_id: 3, action: "replace", cards: [] },
+           { player_id: 1, action: "check"},
+           { player_id: 2, action: "check"},
+           { player_id: 3, action: "check"}]
+
+        table.winners.should include(:player_id => 1, :winnings => 30)
+      end
+    end
+  end
 end
