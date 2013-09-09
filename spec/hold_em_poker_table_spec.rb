@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe DrawPokerTable do
+describe HoldEmPokerTable do
   let(:deck){
     "5H AS 9C TH QH QS 2C 3C 4H AC JS JC KC 3H 3D 8S"
   }
@@ -17,7 +17,7 @@ describe DrawPokerTable do
 
     context "when first initialized" do
       let(:table) {
-        DrawPokerTable.new deck: deck,
+        HoldEmPokerTable.new deck: deck,
                        ante: 5,
                        players: players
       }
@@ -33,7 +33,7 @@ describe DrawPokerTable do
 
     context "when simulating play from a list of actions" do
       let(:table) {
-        DrawPokerTable.new deck: deck,
+        HoldEmPokerTable.new deck: deck,
                        ante: 5,
                        players: players
       }
@@ -45,10 +45,10 @@ describe DrawPokerTable do
 
         it "deals cards and takes the ante of each player" do
           table.players.first[:stack].should == 5
-          table.players.first[:hand].should == ["5H","9C","QH","2C","4H"]
+          table.players.first[:hand].should == ["5H","9C"]
 
           table.players.last[:stack].should == 10
-          table.players.last[:hand].should == ["AS","TH","QS","3C","AC"]
+          table.players.last[:hand].should == ["AS","TH"]
         end
 
         it "sets the round as 'deal'" do
@@ -64,8 +64,12 @@ describe DrawPokerTable do
           ])
         end
 
-        it "shows the round as 'draw'" do
-          table.round.should == 'draw'
+        it "shows the round as 'flop'" do
+          table.round.should == 'flop'
+        end
+
+        it "gives the community a set of cards after discarding a card" do
+          table.community_cards.should == ["QS", "2C", "3C"]
         end
       end
 
@@ -83,24 +87,51 @@ describe DrawPokerTable do
           table.active_players.size.should == 2
         end
 
-        it "shows the round as 'draw'" do
-          table.round.should == 'draw'
+        it "shows the round as 'flop'" do
+          table.round.should == 'flop'
+        end
+
+        it "gives the community a set of cards after discarding a card" do
+          table.community_cards.should == ["QS", "2C", "3C"]
         end
       end
 
-      context "when given valid actions to end the first round and replace cards" do
+      context "when given valid actions to end the pre-flop betting and the post-flop betting" do
         before :each do
           table.simulate!([
             { player_id: "playerone", action: "bet", amount: 1 },
             { player_id: "playertwo", action: "bet", amount: 0 },
-            { player_id: "playerone", action: "replace", cards: ["5H"] },
-            { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] }
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 0 }
           ])
         end
 
-        it "updates the players' hands" do
-          table.players.first[:hand].should == ["9C","QH","2C","4H", "JS"] 
-          table.players.last[:hand].should == ["AS","3C","AC", "JC", "KC"] 
+        it "shows the round as 'turn'" do
+          table.round.should == 'turn'
+        end
+
+        it "burns and turns another card" do
+          table.community_cards.should == ["QS", "2C", "3C", "AC"]
+        end
+      end
+
+      context "when given valid actions to bet pre-flop, post-flop, and before the river" do
+        before :each do
+          table.simulate!([
+            # deal
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 0 },
+            # flop
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 0 },
+            # turn
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 0 }
+          ])
+        end
+
+        it "burns and turns another card" do
+          table.community_cards.should == ["QS", "2C", "3C", "AC", "JC"]
         end
 
         it "shows the round as 'post_draw'" do
@@ -108,35 +139,21 @@ describe DrawPokerTable do
         end
       end
 
-      context "when a player tries to replace three cards" do
-        before :each do
-          table.simulate!([
-            { player_id: "playerone", action: "bet", amount: 1 },
-            { player_id: "playertwo", action: "bet", amount: 0 },
-            { player_id: "playerone", action: "replace", cards: ["5H"] },
-            { player_id: "playertwo", action: "replace", cards: ["QS", "TH", "AS"] }
-          ])
-        end
-
-        it "updates the players' hands" do
-          table.players.first[:hand].should == ["9C","QH","2C","4H", "JS"] 
-          table.players.last[:hand].should == ["3C","AC", "JC", "KC", "3H"] 
-        end
-
-        it "shows the round as being 'post_draw'" do
-          table.round.should == 'post_draw'
-        end
-      end
-
       context "when given valid actions to end a full hand" do
         before :each do
           table.simulate!([
+            # draw
             { player_id: "playerone", action: "bet", amount: 1 },
             { player_id: "playertwo", action: "bet", amount: 0 },
-            { player_id: "playerone", action: "replace", cards: ["5H"] },
-            { player_id: "playertwo", action: "replace", cards: ["QS", "TH"] },
+            # flop
             { player_id: "playerone", action: "bet", amount: 0 },
             { player_id: "playertwo", action: "bet", amount: 1 },
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 0 },
+            # turn
+            { player_id: "playerone", action: "bet", amount: 1 },
+            { player_id: "playertwo", action: "bet", amount: 0 },
+            # post_draw
             { player_id: "playerone", action: "bet", amount: 1 },
             { player_id: "playertwo", action: "bet", amount: 0 },
           ])
@@ -147,11 +164,11 @@ describe DrawPokerTable do
         end
 
         it "knows the round's winners and their winnings" do
-          table.winners.should == [{ player_id: "playertwo", winnings: 16 }]
+          table.winners.should == [{ player_id: "playerone", winnings: 20 }]
         end
 
         it "lists total stack changes per player" do
-          table.stack_changes.should == { "playerone" => -8, "playertwo" => 8 }
+          table.stack_changes.should == { "playerone" => 10, "playertwo" => -10 }
         end
       end
 
@@ -185,7 +202,7 @@ describe DrawPokerTable do
           ).should be_false
         end
 
-        it "requires the cards parameter for replacing" do
+        it "does not allow the replace action" do
           table.simulate!([
               { player_id: "playerone", action: "bet", amount: 1 },
               { player_id: "playertwo", action: "bet", amount: 0 }
@@ -237,15 +254,16 @@ describe DrawPokerTable do
       end
     end
 
+
     describe "#active_players" do
       it "excludes folded players" do
-        t = DrawPokerTable.new
+        t = HoldEmPokerTable.new
         t.expects(:players).returns([{:folded => true}, {}])
         t.active_players.should == [{}]
       end
 
       it "excludes kicked players" do
-        t = DrawPokerTable.new
+        t = HoldEmPokerTable.new
         t.expects(:players).returns([{:kicked => true}, {}])
         t.active_players.should == [{}]
       end
@@ -253,7 +271,7 @@ describe DrawPokerTable do
 
     describe "#ante_up!" do
       it "forces a player all in if they cannot meet the ante" do
-        t = DrawPokerTable.new deck: deck,
+        t = HoldEmPokerTable.new deck: deck,
                        ante: 12,
                        players: players
         t.simulate!
@@ -262,7 +280,7 @@ describe DrawPokerTable do
       end
 
       it "kicks a player out if they have zero chips" do
-        t = DrawPokerTable.new deck: deck,
+        t = HoldEmPokerTable.new deck: deck,
                        ante: 12,
                        players: [ {:id => 1, :stack => 0}, {:id => 2, :stack => 10 } ]
         t.simulate!
@@ -274,7 +292,7 @@ describe DrawPokerTable do
 
   describe "when the dealer goes all-in on the ante" do
     let(:table) {
-      DrawPokerTable.new(
+      HoldEmPokerTable.new(
         :deck => deck,
         :ante => 20,
         :players => [{:id => 1, :stack => 5}, {:id => 2, :stack => 25}])
@@ -284,14 +302,14 @@ describe DrawPokerTable do
       {:player_id=>2, :action=>"bet", :amount=>5}
     ] }
 
-    it "should be in the draw phase" do
-      table.round.should == 'draw'
+    it "should be in the showdown phase" do
+      table.round.should == 'showdown'
     end
   end
 
   describe "with three players" do
     let(:table) {
-      DrawPokerTable.new deck: deck, ante: 15, players: [
+      HoldEmPokerTable.new deck: deck, ante: 15, players: [
         { :id => 1, :stack => 20 },
         { :id => 2, :stack => 20 },
         { :id => 3, :stack => 20 }
@@ -314,7 +332,7 @@ describe DrawPokerTable do
       "AH KC 2H AC KH 3C AS KD 5S AD QS 7D KS QH TC"
     }
     let(:table) {
-      DrawPokerTable.new deck: deck, ante: 5, players: [
+      HoldEmPokerTable.new deck: deck, ante: 5, players: [
         { :id => 1, :stack => 20 },
         { :id => 2, :stack => 40 },
         { :id => 3, :stack => 60 }
@@ -328,9 +346,13 @@ describe DrawPokerTable do
             { player_id: 1, action: "bet", amount: 15 },
             { player_id: 2, action: "bet", amount: 10 },
             { player_id: 3, action: "bet", amount: 0 },
-            { player_id: 1, action: "replace", cards: [] },
-            { player_id: 2, action: "replace", cards: [] },
-            { player_id: 3, action: "replace", cards: [] },
+            # flop
+            { player_id: 2, action: "bet", amount: 0 },
+            { player_id: 3, action: "bet", amount: 0 },
+            # turn
+            { player_id: 2, action: "bet", amount: 0 },
+            { player_id: 3, action: "bet", amount: 0 },
+            # post_draw
             { player_id: 2, action: "bet", amount: 0 },
             { player_id: 3, action: "bet", amount: 0 }
           ]
@@ -343,15 +365,42 @@ describe DrawPokerTable do
         it "has 20 chips in the side pot" do
           table.winners.should include({:player_id=>2, :winnings=>20})
         end
+      end
 
+      context "when the side pot forms after the initial bets" do
+        before :each do
+          table.simulate! [
+            { player_id: 1, action: "bet", amount: 10 },
+            { player_id: 2, action: "bet", amount: 0 },
+            { player_id: 3, action: "bet", amount: 0 },
+            # flop
+            { player_id: 1, action: "bet", amount: 5 },
+            { player_id: 2, action: "bet", amount: 0 },
+            { player_id: 3, action: "bet", amount: 0 },
+            # turn
+            { player_id: 2, action: "bet", amount: 5 },
+            { player_id: 3, action: "bet", amount: 0 },
+            # post_draw
+            { player_id: 2, action: "bet", amount: 0 },
+            { player_id: 3, action: "bet", amount: 0 }
+          ]
+        end
+
+        it "awards 60 chips to player 1" do
+          table.winners.should include({ :player_id=>1, :winnings=>60})
+        end
+
+        it "has 20 chips in the side pot" do
+          table.winners.should include({:player_id=>2, :winnings=>10})
+        end
       end
 
       context "when there are two side pots" do
         let(:deck) {
-          "AC KC QC JC AS KS QS JS AH KH QH JH AD KD QD JD 2C 2D 2S 2H"
+          "AC KC QC JC AS KS QS JS 2S AH 2D KH 2H QH 2C JH 3S AD KD QD JD"
         }
         let(:table) {
-          DrawPokerTable.new deck: deck, ante: 5, players: [
+          HoldEmPokerTable.new deck: deck, ante: 5, players: [
             { :id => 1, :stack => 20 },
             { :id => 2, :stack => 30 },
             { :id => 3, :stack => 40 },
@@ -364,10 +413,13 @@ describe DrawPokerTable do
             { player_id: 2, action: "bet", amount: 10 },
             { player_id: 3, action: "bet", amount: 10 },
             { player_id: 4, action: "bet", amount: 0 },
-            { player_id: 1, action: "replace", cards: [] },
-            { player_id: 2, action: "replace", cards: [] },
-            { player_id: 3, action: "replace", cards: [] },
-            { player_id: 4, action: "replace", cards: [] },
+
+            { player_id: 3, action: "bet", amount: 0 },
+            { player_id: 4, action: "bet", amount: 0 },
+
+            { player_id: 3, action: "bet", amount: 0 },
+            { player_id: 4, action: "bet", amount: 0 },
+
             { player_id: 3, action: "bet", amount: 0 },
             { player_id: 4, action: "bet", amount: 0 }
           ]
@@ -388,7 +440,7 @@ describe DrawPokerTable do
 
       context "when the chip leader wins the main pot do" do
         let(:table) {
-          DrawPokerTable.new deck: deck, ante: 5, players: [
+          HoldEmPokerTable.new deck: deck, ante: 5, players: [
             { :id => 1, :stack => 100 },
             { :id => 2, :stack => 50 },
             { :id => 3, :stack => 20 }
@@ -398,10 +450,7 @@ describe DrawPokerTable do
           table.simulate! [
             { player_id: 1, action: "bet", amount: 95 },
             { player_id: 2, action: "bet", amount: 0 },
-            { player_id: 3, action: "bet", amount: 0 },
-            { player_id: 1, action: "replace", cards: [] },
-            { player_id: 2, action: "replace", cards: [] },
-            { player_id: 3, action: "replace", cards: [] }
+            { player_id: 3, action: "bet", amount: 0 }
           ]
         end
 
@@ -414,7 +463,7 @@ describe DrawPokerTable do
 
   describe "two player table when player two goes all in and the other calls/raises" do
     let(:t) {
-      DrawPokerTable.new( players: [{:id=>75, :stack=>492}, {:id=>74, :stack=>258}],
+      HoldEmPokerTable.new( players: [{:id=>75, :stack=>492}, {:id=>74, :stack=>258}],
         ante: 20,
         deck: "2C AC 4H AS 4C KC 8S 7D 6C 5D 3H 4D KH AD TC AH 7H 6S KD 5H 8D 9C 8C JD QS 2H 6H QH 4S 2D 3C TS 3D KS 9D 8H JS 7S 5S 7C TD QD 5C 6D JH QC 9S 2S TH JC")
     }
@@ -423,8 +472,6 @@ describe DrawPokerTable do
         {:player_id=>75, :action=>"bet", :amount=>0, :cards=>nil},
         {:player_id=>74, :action=>"bet", :amount=>238, :cards=>nil},
         {:player_id=>75, :action=>"bet", :amount=>7, :cards=>nil},
-        {:player_id=>75, :action=>"replace", :amount=>nil, :cards=>["6C"]},
-        {:player_id=>74, :action=>"replace", :amount=>nil, :cards=>[]}
       ]
     }
 
@@ -435,16 +482,14 @@ describe DrawPokerTable do
 
   describe "two player table when player one goes all in and the other calls/raises" do
     let(:t) {
-      DrawPokerTable.new( players: [{:id=>75, :stack=>100}, {:id=>74, :stack=>50}],
+      HoldEmPokerTable.new( players: [{:id=>75, :stack=>100}, {:id=>74, :stack=>50}],
         ante: 20,
-        deck: "Ac 5d 2c 3d 3c 9s 4c 8h 5c Kh")
+        deck: "Ac 5d 2c 3d 3c 9s 4c 8h 5c Ad 6d Ah")
     }
     before {
       t.simulate! [
         {:player_id=>75, :action=>"bet", :amount=>40, :cards=>nil},
         {:player_id=>74, :action=>"bet", :amount=>0, :cards=>nil},
-        {:player_id=>75, :action=>"replace", :amount=>nil, :cards=>[]},
-        {:player_id=>74, :action=>"replace", :amount=>nil, :cards=>[]}
       ]
     }
 
@@ -455,7 +500,7 @@ describe DrawPokerTable do
 
   describe "logging" do
     let(:table) do
-      t = DrawPokerTable.new deck: deck, ante: 15, players: [
+      t = HoldEmPokerTable.new deck: deck, ante: 15, players: [
         { :id => 1, :stack => 20 },
         { :id => 2, :stack => 20 },
         { :id => 3, :stack => 20 }
@@ -484,7 +529,7 @@ describe DrawPokerTable do
   describe "other types of bets" do
     let(:deck) { "AH KC 2H AC KH 3C AS KD 5S AD QS 7D KS QH TC" }
     let(:table) {
-      DrawPokerTable.new deck: deck, ante: 5, players: [
+      HoldEmPokerTable.new deck: deck, ante: 5, players: [
         { :id => 1, :stack => 100 },
         { :id => 2, :stack => 50 },
         { :id => 3, :stack => 20 }
@@ -504,9 +549,18 @@ describe DrawPokerTable do
             { player_id: 1, action: "bet", amount: 95 },
             { player_id: 2, action: "call", amount: 0 },
             { player_id: 3, action: "call", amount: 0 },
-            { player_id: 1, action: "replace", cards: [] },
-            { player_id: 2, action: "replace", cards: [] },
-            { player_id: 3, action: "replace", cards: [] }
+
+            { player_id: 1, action: "call", amount: 0 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 },
+
+            { player_id: 1, action: "call", amount: 0 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 },
+
+            { player_id: 1, action: "call", amount: 0 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 },
           ]
         end
 
@@ -519,21 +573,28 @@ describe DrawPokerTable do
     describe "raise" do
       it "is a valid action" do
         table.simulate! [ { player_id: 1, action: "bet", amount: 5 } ]
-        
+
         table.valid_action?(player_id: 2, action: "raise", amount: 5).should be_true
       end
 
       it "works the same as bet" do
         table.simulate! [
-           { player_id: 1, action: "bet", amount: 5 },
-           { player_id: 2, action: "call", amount: 0 },
-           { player_id: 3, action: "call", amount: 0 },
-           { player_id: 1, action: "replace", cards: [] },
-           { player_id: 2, action: "replace", cards: [] },
-           { player_id: 3, action: "replace", cards: [] },
-           { player_id: 1, action: "raise", :amount => 5},
-           { player_id: 2, action: "call"},
-           { player_id: 3, action: "call"}]
+            { player_id: 1, action: "bet", amount: 5 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 },
+
+            { player_id: 1, action: "raise", amount: 5 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 },
+
+            { player_id: 1, action: "call", amount: 0 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 },
+
+            { player_id: 1, action: "call", amount: 0 },
+            { player_id: 2, action: "call", amount: 0 },
+            { player_id: 3, action: "call", amount: 0 }
+        ]
 
         table.winners.should include(player_id: 1, winnings: 45)
       end
@@ -544,10 +605,8 @@ describe DrawPokerTable do
         table.simulate! [
            { player_id: 1, action: "bet", amount: 5 },
            { player_id: 2, action: "call", amount: 0 },
-           { player_id: 3, action: "call", amount: 0 },
-           { player_id: 1, action: "replace", cards: [] },
-           { player_id: 2, action: "replace", cards: [] },
-           { player_id: 3, action: "replace", cards: [] }]
+           { player_id: 3, action: "call", amount: 0 }
+        ]
 
         table.valid_action?( player_id: 1, action: "check" ).should be_true
       end
@@ -557,9 +616,6 @@ describe DrawPokerTable do
            { player_id: 1, action: "bet", amount: 5 },
            { player_id: 2, action: "call", amount: 0 },
            { player_id: 3, action: "call", amount: 0 },
-           { player_id: 1, action: "replace", cards: [] },
-           { player_id: 2, action: "replace", cards: [] },
-           { player_id: 3, action: "replace", cards: [] },
            { player_id: 1, action: "bet", amount: 5 }]
 
         table.valid_action?( player_id: 2, action: "check" ).should be_false
@@ -570,12 +626,19 @@ describe DrawPokerTable do
            { player_id: 1, action: "bet", amount: 5 },
            { player_id: 2, action: "call", amount: 0 },
            { player_id: 3, action: "call", amount: 0 },
-           { player_id: 1, action: "replace", cards: [] },
-           { player_id: 2, action: "replace", cards: [] },
-           { player_id: 3, action: "replace", cards: [] },
+
            { player_id: 1, action: "check"},
            { player_id: 2, action: "check"},
-           { player_id: 3, action: "check"}]
+           { player_id: 3, action: "check"},
+
+           { player_id: 1, action: "check"},
+           { player_id: 2, action: "check"},
+           { player_id: 3, action: "check"},
+
+           { player_id: 1, action: "check"},
+           { player_id: 2, action: "check"},
+           { player_id: 3, action: "check"}
+        ]
 
         table.winners.should include(:player_id => 1, :winnings => 30)
       end

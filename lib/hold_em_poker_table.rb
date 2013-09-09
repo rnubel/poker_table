@@ -1,7 +1,8 @@
-class DrawPokerTable < PokerTable
-  DRAW_LIMIT = 3
-  DEAL_SIZE = 5
-  BETTING_ROUNDS = ['deal', 'post_draw'].freeze
+class HoldEmPokerTable < PokerTable
+  DRAW_LIMIT = 0
+  DEAL_SIZE = 2
+  FLOP_SIZE = 3
+  BETTING_ROUNDS = ['deal', 'flop', 'turn', 'post_draw'].freeze
 
   def valid_action?(action)
     player = find_player(action[:player_id])
@@ -29,15 +30,6 @@ class DrawPokerTable < PokerTable
       else
         false
       end
-    when "replace" # :cards => List of cards to replace
-      return false unless action[:cards].is_a? Enumerable
-      if draw_round?
-        action[:cards].all? { |c|
-          player[:hand].include?(c)
-        } && action[:cards].size <= DRAW_LIMIT
-      else
-        false
-      end
     when "fold" # Should always be allowed, if it's their turn.
       true
     end
@@ -45,14 +37,7 @@ class DrawPokerTable < PokerTable
 
 private
   def replace!(player, cards)
-    log << { :player_id => player[:id], :action => "replace", :cards => cards }
-    player[:hand] -= cards
-    (DEAL_SIZE - player[:hand].size).times do
-      player[:hand].push @deck.delete_at(0)
-    end
-
-    player[:replaced] = true
-    next_player!
+    raise RuntimeError, "can not replace cards in a HoldEmPokerTable"
   end
 
   def update_round!
@@ -63,15 +48,58 @@ private
             active_players.all? { |p| p[:current_bet] == self.minimum_bet || p[:all_in] } )
         # Betting over, move to the next round.
         if @round == 'deal'
-          start_draw!
+          start_flop!
+        elsif @round == 'flop'
+          start_turn!
+        elsif @round == 'turn'
+          start_post_draw!
         elsif @round == 'post_draw'
           showdown!
         end
       end
-    elsif draw_round? # currently in draw; check if all replacements are in
-      if active_players.all? { |p| p[:replaced] }
-        start_post_draw!
-      end
+    end
+  end
+
+  def start_flop!
+    deal_community_cards!(FLOP_SIZE)
+    set_round('flop')
+    @current_player = active_players.last
+    if all_but_one_all_in?
+      update_round!
+    else
+      next_player!
+    end
+  end
+
+  def start_turn!
+    deal_community_cards!(1)
+    set_round('turn')
+    @current_player = active_players.last
+    if all_but_one_all_in?
+      update_round!
+    else
+      next_player!
+    end
+  end
+
+  def start_post_draw!
+    deal_community_cards!(1)
+    set_round('post_draw')
+    @current_player = active_players.last
+
+    if all_but_one_all_in?
+      update_round!
+    else
+      next_player!
+    end
+  end
+
+  def deal_community_cards!(card_count)
+    # burn and turn, baby.
+    @deck.delete_at(0)
+
+    card_count.times do
+      community_cards.push @deck.delete_at(0)
     end
   end
 end

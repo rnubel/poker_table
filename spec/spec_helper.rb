@@ -1,5 +1,6 @@
 require_relative '../lib/poker_table'
 require_relative '../lib/draw_poker_table'
+require_relative '../lib/hold_em_poker_table'
 
 require 'pry'
 

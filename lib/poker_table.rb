@@ -3,8 +3,9 @@ require 'ruby-poker'
 class PokerTable
   DRAW_LIMIT = 3
   DEAL_SIZE = 5
+  BETTING_ROUNDS = ['deal', 'post_draw'].freeze
 
-  attr_accessor :players, :deck, :actions, :ante, :round, :pots, :winners, :losers, :current_player, :log
+  attr_accessor :players, :deck, :actions, :ante, :round, :community_cards, :pots, :winners, :losers, :current_player, :log
 
   def initialize(params={deck:""})
     @deck = params[:deck].split(" ")
@@ -12,6 +13,7 @@ class PokerTable
     @players.each { |p| p[:initial_stack] = p[:stack] }
     @actions = []
     @ante = params[:ante]
+    @community_cards = []
 
     @losers = []
 
@@ -70,7 +72,7 @@ class PokerTable
   end
 
   def valid_action?(action)
-    raise NoMethodError, "#valid_action? must be declared by a specific PokerTable implementation."
+    raise NotImplementedError, "#valid_action? must be declared by a specific PokerTable implementation."
   end
 
 
@@ -96,7 +98,7 @@ private
       player[:hand] = []
     end
 
-    DEAL_SIZE.times do
+    self.class::DEAL_SIZE.times do
       active_players.each do |player|
         player[:hand].push @deck.delete_at(0)
       end
@@ -162,7 +164,7 @@ private
   end
 
   def replace!(player, cards)
-    raise NoMethodError, "#replace! must be declared by a specific PokerTable implementation."
+    raise NotImplementedError, "#replace! must be declared by a specific PokerTable implementation."
   end
 
   def next_player!
@@ -206,7 +208,7 @@ private
   end
 
   def update_round!
-    raise NoMethodError, "#update_round! must be declared by a specific PokerTable implementation."
+    raise NotImplementedError, "#update_round! must be declared by a specific PokerTable implementation."
   end
 
   def everyones_bet?
@@ -232,10 +234,15 @@ private
 
   def start_deal!
     set_round('deal')
+    clear_community_cards!
     ante_up!
     deal_cards!
     @current_player = active_players.last
     next_player!
+  end
+
+  def clear_community_cards!
+    community_cards = []
   end
 
   def start_draw!
@@ -269,9 +276,9 @@ private
       pot_entrants = entered_players.select { |p| p[:current_bet] >= pot }
 
       if pot_players.size > 1
-        winning_hand = pot_players.map { |p| PokerHand.new(p[:hand]) }.max
+        winning_hand = pot_players.map { |p| PokerHand.new(p[:hand] + community_cards) }.max
         winners = pot_players.select { |p|
-          PokerHand.new(p[:hand]) == winning_hand
+          PokerHand.new(p[:hand] + community_cards) == winning_hand
         }
       elsif pot_players.size == 1
         winners = pot_players
@@ -318,7 +325,7 @@ private
   end
 
   def betting_round?
-    ['deal', 'post_draw'].include? self.round
+    self.class::BETTING_ROUNDS.include? self.round
   end
 
   def draw_round?
