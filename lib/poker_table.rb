@@ -12,7 +12,7 @@ class PokerTable
     @players = params[:players] || []
     @players.each { |p| p[:initial_stack] = p[:stack] }
     @actions = []
-    @ante = params[:ante]
+    @ante = params[:ante] || params[:big_blind]
     @community_cards = []
 
     @losers = []
@@ -267,13 +267,13 @@ private
     @round = 'showdown'
     @winners = {}
 
-    bets = self.entered_players.collect { |p| p[:current_bet] }
+    bets = self.entered_players.collect { |p| p[:current_bet] || 0 }
     @pots = [0] + bets.uniq.sort
     @total_pot = bets.reduce(0) { |s, b| s + b }
 
     @pots.each_cons(2) do |last_pot, pot|
-      pot_players = active_players.select { |p| p[:current_bet] >= pot }
-      pot_entrants = entered_players.select { |p| p[:current_bet] >= pot }
+      pot_players   = active_players.select   { |p| (p[:current_bet] || 0) >= pot }
+      pot_entrants  = entered_players.select  { |p| (p[:current_bet] || 0) >= pot }
 
       if pot_players.size > 1
         winning_hand = pot_players.map { |p| PokerHand.new(p[:hand] + community_cards) }.max

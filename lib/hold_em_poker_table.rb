@@ -2,7 +2,7 @@ class HoldEmPokerTable < PokerTable
   DRAW_LIMIT = 0
   DEAL_SIZE = 2
   FLOP_SIZE = 3
-  BETTING_ROUNDS = ['deal', 'flop', 'turn', 'post_draw'].freeze
+  BETTING_ROUNDS = ['deal', 'flop', 'turn', 'river'].freeze
 
   def valid_action?(action)
     player = find_player(action[:player_id])
@@ -52,18 +52,27 @@ private
         elsif @round == 'flop'
           start_turn!
         elsif @round == 'turn'
-          start_post_draw!
-        elsif @round == 'post_draw'
+          start_river!
+        elsif @round == 'river'
           showdown!
         end
       end
     end
   end
 
+  def start_deal!
+    set_round('deal')
+    clear_community_cards!
+    take_blinds!
+    deal_cards!
+    #@current_player = active_players.reverse.find { |p| !p[:current_bet].nil? } || active_players.first
+    next_player!
+  end
+
   def start_flop!
     deal_community_cards!(FLOP_SIZE)
     set_round('flop')
-    @current_player = active_players.last
+    @current_player = active_players.first
     if all_but_one_all_in?
       update_round!
     else
@@ -74,7 +83,7 @@ private
   def start_turn!
     deal_community_cards!(1)
     set_round('turn')
-    @current_player = active_players.last
+    @current_player = active_players.first
     if all_but_one_all_in?
       update_round!
     else
@@ -82,10 +91,10 @@ private
     end
   end
 
-  def start_post_draw!
+  def start_river!
     deal_community_cards!(1)
-    set_round('post_draw')
-    @current_player = active_players.last
+    set_round('river')
+    @current_player = active_players.first
 
     if all_but_one_all_in?
       update_round!
@@ -100,6 +109,37 @@ private
 
     card_count.times do
       community_cards.push @deck.delete_at(0)
+    end
+  end
+
+  def big_blind
+    @ante
+  end
+
+  def small_blind
+    big_blind / 2
+  end
+
+  private
+  def take_blinds!
+    # players[0] is the dealer. they do not place a blind
+    # players[1] places the small blind
+    # players[2] places the big blind
+
+    @current_player = active_players[2 % active_players.size]
+
+    [ [active_players[1]                        , small_blind], 
+      [active_players[2 % active_players.size]  , big_blind]
+    ].each do |player, blind|
+      if player[:stack] == 0
+        kick!(player)
+      else
+        ante!(player, [player[:stack], blind].min)
+      end
+    end
+
+    if active_players.size <= 1
+      showdown!
     end
   end
 end
