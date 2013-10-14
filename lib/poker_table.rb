@@ -227,6 +227,8 @@ private
     active_players.each { |p| p[:bet_this_round] = false }
     log << { :round => round }
 
+    yield if block_given?
+
     if betting_round? && active_players.all? { |p| p[:all_in] }
       update_round!
     end

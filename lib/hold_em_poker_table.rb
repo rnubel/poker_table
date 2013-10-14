@@ -61,8 +61,10 @@ private
   end
 
   def start_deal!
-    set_round('deal')
-    clear_community_cards!
+    set_round('deal') do
+      clear_community_cards!
+    end
+
     take_blinds!
     deal_cards!
     #@current_player = active_players.reverse.find { |p| !p[:current_bet].nil? } || active_players.first
@@ -70,8 +72,10 @@ private
   end
 
   def start_flop!
-    set_round('flop')
-    deal_community_cards!(FLOP_SIZE)
+    set_round('flop') do
+      deal_community_cards!(FLOP_SIZE)
+    end
+
     @current_player = active_players.first
     if all_but_one_all_in?
       update_round!
@@ -81,8 +85,10 @@ private
   end
 
   def start_turn!
-    set_round('turn')
-    deal_community_cards!(1)
+    set_round('turn') do
+      deal_community_cards!(1)
+    end
+
     @current_player = active_players.first
     if all_but_one_all_in?
       update_round!
@@ -92,8 +98,10 @@ private
   end
 
   def start_river!
-    set_round('river')
-    deal_community_cards!(1)
+    set_round('river') do
+      deal_community_cards!(1)
+    end
+
     @current_player = active_players.first
 
     if all_but_one_all_in?
