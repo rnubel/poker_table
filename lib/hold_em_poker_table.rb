@@ -70,8 +70,8 @@ private
   end
 
   def start_flop!
-    deal_community_cards!(FLOP_SIZE)
     set_round('flop')
+    deal_community_cards!(FLOP_SIZE)
     @current_player = active_players.first
     if all_but_one_all_in?
       update_round!
@@ -81,8 +81,8 @@ private
   end
 
   def start_turn!
-    deal_community_cards!(1)
     set_round('turn')
+    deal_community_cards!(1)
     @current_player = active_players.first
     if all_but_one_all_in?
       update_round!
@@ -92,8 +92,8 @@ private
   end
 
   def start_river!
-    deal_community_cards!(1)
     set_round('river')
+    deal_community_cards!(1)
     @current_player = active_players.first
 
     if all_but_one_all_in?
@@ -105,11 +105,15 @@ private
 
   def deal_community_cards!(card_count)
     # burn and turn, baby.
-    @deck.delete_at(0)
+    @deck.delete_at(0) # note to trey: the players never see the deck. why bother?
 
-    card_count.times do
-      community_cards.push @deck.delete_at(0)
+    cards_dealt = card_count.times.collect do
+      card = @deck.delete_at(0)
+      community_cards.push card
+      card
     end
+
+    log <<  { :community_cards => cards_dealt }
   end
 
   def big_blind
